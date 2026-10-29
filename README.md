@@ -32,7 +32,7 @@ JUCE 8 se descarga solo la primera vez que configuras (tarda 1–2 min).
 ## Compilar
 
 ```powershell
-cmake -B build -G "Visual Studio 17 2022" -A x64
+cmake -B build -A x64
 cmake --build build --config Release --target FourEverHum_VST3 FourEverHum_Standalone hum2midi
 ctest --test-dir build -C Release --output-on-failure
 ```
