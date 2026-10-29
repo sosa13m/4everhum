@@ -193,7 +193,13 @@ std::vector<NoteEvent> segmentNotes (const std::vector<PitchFrame>& frames,
             db += frames[(std::size_t) i].rmsDb;
         db /= (seg.end - seg.start);
 
+        std::vector<float> voiced;
+        for (int i = seg.start; i < seg.end; ++i)
+            if (! isUnvoiced (smooth[(std::size_t) i]))
+                voiced.push_back (smooth[(std::size_t) i]);
+
         NoteEvent ev;
+        ev.pitch    = voiced.empty() ? (float) seg.note : median (std::move (voiced));
         ev.startSec = std::max (0.0, frames[(std::size_t) seg.start].timeSec - dt * 0.5);
         ev.endSec   = frames[(std::size_t) seg.end - 1].timeSec + dt * 0.5;
         ev.midiNote = std::clamp (seg.note, 0, 127);

@@ -1,4 +1,4 @@
-# Pruebas reales de 4EVERHUM (antes del Sprint 3)
+# Pruebas reales de 4EVERHUM
 
 Marca cada punto con `[x]` y anota lo raro al lado. Si una detección sale mal,
 pulsa **Guardar toma .wav…** y guarda el archivo: con esa toma se puede ajustar
@@ -41,7 +41,16 @@ el motor con datos reales.
 | Silbido | | |
 | Con ruido de fondo (ventilador, calle) | | |
 
-## 5. Lo que falta (Sprint 3, no es un error)
+## 5. Tonalidad, escala y grid (Sprint 3)
 
-- Las notas no se ajustan a una escala ni al grid: si tarareas un poco desafinado
-  o adelantado, la nota sale así. Eso es lo que resuelve el próximo sprint.
+- [ ] El sello rojo muestra una tonalidad que tiene sentido para lo que tarareé
+- [ ] Con un beat en tonalidad conocida, elegirla en **Tonalidad** ajusta bien las notas
+- [ ] Una nota cantada un poco desafinada cae en la nota correcta de la escala
+- [ ] **Sin escala** devuelve las alturas tal como las canté
+- [ ] **Cuantizar 1/16** al 100%: las notas quedan en el grid del piano roll de FL
+- [ ] **Fuerza** al 50%: las notas se acercan al grid pero conservan algo de groove
+- [ ] Tresillos (**1/8T**) con un ritmo tresillado
+- [ ] Grabando **con FL sonando**: el estado dice "alineadas desde el compás N" y al
+      soltar el clip al inicio de ese compás cada nota cae donde la canté
+- [ ] Grabando con FL detenido: la primera nota cae en el tiempo 1
+- [ ] El `.mid` arrastrado se llama `4EVERHUM_<tonalidad>_<bpm>bpm_...`

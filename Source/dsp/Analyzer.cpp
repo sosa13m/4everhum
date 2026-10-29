@@ -45,6 +45,7 @@ std::vector<NoteEvent> transposeOctaves (std::vector<NoteEvent> notes, int octav
         int m = n.midiNote + 12 * octaves;
         while (m > 127) m -= 12;
         while (m < 0)   m += 12;
+        n.pitch += (float) (m - n.midiNote);
         n.midiNote = m;
     }
     return notes;

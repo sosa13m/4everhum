@@ -3,12 +3,10 @@
 namespace fourever
 {
 
-juce::MidiFile buildMidiFile (const std::vector<NoteEvent>& notes, const MidiExportSettings& s)
+juce::MidiFile buildMidiFile (const std::vector<ClipNote>& notes, const MidiExportSettings& s)
 {
-    const double bpm          = s.bpm > 0.0 ? s.bpm : 120.0;
-    const double ticksPerSec  = bpm / 60.0 * s.ppq;
-    const double offsetSec    = (s.trimLeadingSilence && ! notes.empty()) ? notes.front().startSec : 0.0;
-    auto toTick = [&] (double sec) { return std::round ((sec - offsetSec) * ticksPerSec); };
+    const double bpm = s.bpm > 0.0 ? s.bpm : 120.0;
+    auto toTick = [&] (double beat) { return std::round (beat * s.ppq); };
 
     juce::MidiMessageSequence seq;
     seq.addEvent (juce::MidiMessage::textMetaEvent (3, s.trackName), 0.0);
@@ -18,10 +16,10 @@ juce::MidiFile buildMidiFile (const std::vector<NoteEvent>& notes, const MidiExp
     double lastTick = 0.0;
     for (const auto& n : notes)
     {
-        const double on  = juce::jmax (0.0, toTick (n.startSec));
+        const double on  = juce::jmax (0.0, toTick (n.startBeat));
         // 1 tick menos para que el note-off nunca coincida con el note-on de la
         // siguiente nota igual (algunos DAWs las fusionarian).
-        const double off = juce::jmax (on + 1.0, toTick (n.endSec) - 1.0);
+        const double off = juce::jmax (on + 1.0, toTick (n.startBeat + n.lengthBeat) - 1.0);
         const auto   vel = (juce::uint8) juce::jlimit (1, 127, (int) std::round (n.velocity * 127.0f));
 
         seq.addEvent (juce::MidiMessage::noteOn  (s.channel, n.midiNote, vel), on);
@@ -39,7 +37,7 @@ juce::MidiFile buildMidiFile (const std::vector<NoteEvent>& notes, const MidiExp
     return file;
 }
 
-bool writeMidiFile (const juce::File& file, const std::vector<NoteEvent>& notes, const MidiExportSettings& s)
+bool writeMidiFile (const juce::File& file, const std::vector<ClipNote>& notes, const MidiExportSettings& s)
 {
     auto midi = buildMidiFile (notes, s);
 
@@ -51,9 +49,10 @@ bool writeMidiFile (const juce::File& file, const std::vector<NoteEvent>& notes,
     return midi.writeTo (out, 1);
 }
 
-juce::String suggestedMidiFileName (double bpm)
+juce::String suggestedMidiFileName (double bpm, const juce::String& keyLabel)
 {
-    return "4EVERHUM_" + juce::String (juce::roundToInt (bpm)) + "bpm_"
+    return "4EVERHUM_" + (keyLabel.isNotEmpty() ? keyLabel + "_" : juce::String())
+         + juce::String (juce::roundToInt (bpm)) + "bpm_"
          + juce::Time::getCurrentTime().formatted ("%Y%m%d-%H%M%S") + ".mid";
 }
 

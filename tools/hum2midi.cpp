@@ -4,11 +4,13 @@
 //   hum2midi toma.wav
 //   hum2midi toma.wav --bpm 140 --octava 1 -o melodia.mid
 //   hum2midi toma.wav --sensibilidad 70 --estabilidad 80
+//   hum2midi toma.wav --tonalidad Am --cuantizar 1/8
 //
 // Sirve para probar rapido cambios de ajustes sobre grabaciones reales, sin
 // abrir el DAW.
 
 #include "dsp/Analyzer.h"
+#include "dsp/Music.h"
 #include "midi/MidiExporter.h"
 
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -30,6 +32,11 @@ void printUsage()
         "  --estabilidad <0-100>        Cuanto ignora vibrato/desafinacion (por defecto 50)\n"
         "  --octava <-2..2>             Transponer en octavas (por defecto 0)\n"
         "  --sin-filtro                 Desactiva el filtro de ruido automatico\n"
+        "  --tonalidad <auto|C|C#|Db|...|B>[m]  Tonalidad (por defecto auto; 'Am' = La menor)\n"
+        "  --escala <nombre>            auto, mayor, menor, menor-armonica, dorica, frigia,\n"
+        "                               penta-mayor, penta-menor o ninguna (por defecto auto)\n"
+        "  --cuantizar <grid>           apagado, 1/4, 1/8, 1/16, 1/32, 1/8T o 1/16T (por defecto 1/16)\n"
+        "  --fuerza <0-100>             Fuerza de la cuantizacion (por defecto 100)\n"
         "  -h, --ayuda                  Muestra esta ayuda");
 }
 
@@ -42,6 +49,45 @@ bool readNumber (const juce::StringArray& args, int& i, double& out)
         return false;
     out = text.getDoubleValue();
     return true;
+}
+
+// "C", "c#", "Db", "Am", "F#m" -> tonica 0..11 (y si termina en m, menor). -1 si no se entiende.
+int parseKey (juce::String text, bool& minor)
+{
+    text = text.trim();
+    minor = text.length() > 1 && text.endsWithIgnoreCase ("m");
+    if (minor)
+        text = text.dropLastCharacters (1);
+
+    static const char* names[] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    static const char* flats[] { "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B" };
+    for (int i = 0; i < 12; ++i)
+        if (text.equalsIgnoreCase (names[i]) || text.equalsIgnoreCase (flats[i]))
+            return i;
+    return -1;
+}
+
+bool parseScale (const juce::String& text, fourever::Scale& out)
+{
+    using S = fourever::Scale;
+    const std::pair<const char*, S> table[] {
+        { "auto", S::autoDetect }, { "mayor", S::major }, { "menor", S::minor },
+        { "menor-armonica", S::harmonicMinor }, { "dorica", S::dorian }, { "frigia", S::phrygian },
+        { "penta-mayor", S::pentatonicMajor }, { "penta-menor", S::pentatonicMinor }, { "ninguna", S::none } };
+    for (const auto& [name, value] : table)
+        if (text.equalsIgnoreCase (name)) { out = value; return true; }
+    return false;
+}
+
+bool parseGrid (const juce::String& text, fourever::Grid& out)
+{
+    using G = fourever::Grid;
+    const std::pair<const char*, G> table[] {
+        { "apagado", G::off }, { "1/4", G::quarter }, { "1/8", G::eighth }, { "1/16", G::sixteenth },
+        { "1/32", G::thirtySecond }, { "1/8T", G::eighthTriplet }, { "1/16T", G::sixteenthTriplet } };
+    for (const auto& [name, value] : table)
+        if (text.equalsIgnoreCase (name)) { out = value; return true; }
+    return false;
 }
 } // namespace
 
@@ -59,7 +105,9 @@ int main (int argc, char* argv[])
 
     juce::File input, output;
     fourever::UserSettings settings;
+    fourever::ClipSettings clipSettings;
     double bpm = 120.0, octave = 0.0;
+    bool scaleGiven = false, keyIsMinor = false;
 
     for (int i = 0; i < args.size(); ++i)
     {
@@ -78,6 +126,19 @@ int main (int argc, char* argv[])
         else if (a == "--estabilidad")   { ok = readNumber (args, i, v); settings.stability   = (float) v; }
         else if (a == "--octava")        { ok = readNumber (args, i, v) && v >= -2.0 && v <= 2.0; octave = v; }
         else if (a == "--sin-filtro")    { settings.autoGate = false; }
+        else if (a == "--fuerza")        { ok = readNumber (args, i, v) && v >= 0.0 && v <= 100.0; clipSettings.strength = (float) (v / 100.0); }
+        else if (a == "--tonalidad")
+        {
+            ok = i + 1 < args.size();
+            if (ok && ! args[i + 1].equalsIgnoreCase ("auto"))
+            {
+                clipSettings.keyRoot = parseKey (args[i + 1], keyIsMinor);
+                ok = clipSettings.keyRoot >= 0;
+            }
+            ++i;
+        }
+        else if (a == "--escala")        { ok = i + 1 < args.size() && parseScale (args[++i], clipSettings.scale); scaleGiven = true; }
+        else if (a == "--cuantizar")     { ok = i + 1 < args.size() && parseGrid (args[++i], clipSettings.grid); }
         else if (a.startsWith ("-"))     { ok = false; }
         else                             { input = juce::File::getCurrentWorkingDirectory().getChildFile (a); }
 
@@ -96,6 +157,10 @@ int main (int argc, char* argv[])
     }
     if (output == juce::File{})
         output = input.withFileExtension ("mid");
+
+    // "--tonalidad Am" sin --escala: escala menor.
+    if (keyIsMinor && ! scaleGiven)
+        clipSettings.scale = fourever::Scale::minor;
 
     // --- Leer audio y mezclar a mono ---------------------------------------
     juce::AudioFormatManager formats;
@@ -124,8 +189,7 @@ int main (int argc, char* argv[])
                  settings.sensitivity, settings.minNoteMs, settings.stability, (int) octave,
                  settings.autoGate ? "si" : "no");
 
-    auto notes = fourever::analyze (mono.data(), mono.size(), reader->sampleRate, settings);
-    notes      = fourever::transposeOctaves (std::move (notes), (int) octave);
+    const auto notes = fourever::analyze (mono.data(), mono.size(), reader->sampleRate, settings);
 
     if (notes.empty())
     {
@@ -133,26 +197,39 @@ int main (int argc, char* argv[])
         return 2;
     }
 
-    // --- Mostrar (en tiempos del MIDI resultante: la primera nota cae en 0) --
-    const double beatSec = 60.0 / bpm;
-    const double t0      = notes.front().startSec;
-    std::printf ("\n  #  Nota (FL)  MIDI   Tiempo     Inicio (negras)  Duracion\n");
-    for (std::size_t i = 0; i < notes.size(); ++i)
+    clipSettings.bpm     = bpm;
+    clipSettings.octaves = (int) octave;
+    const auto clip = fourever::makeClip (notes, clipSettings);
+
+    // --- Tonalidad -----------------------------------------------------------
+    if (clip.scaleUsed == fourever::Scale::none)
+        std::printf ("Tonalidad: sin escala%s\n", clip.detected.valid ? "" : " (muy pocas notas para detectarla)");
+    else
+        std::printf ("Tonalidad: %s (%s, Camelot %s)%s\n", fourever::keyNameSpanish (clip.key).c_str(),
+                     fourever::keyName (clip.key).c_str(), fourever::camelot (clip.key).c_str(),
+                     clipSettings.keyRoot >= 0 ? " - elegida" : " - detectada");
+    if (clip.detected.valid && clipSettings.keyRoot < 0)
+        std::printf ("           otras posibles: %s, %s\n", fourever::keyName (clip.detected.alternatives[1]).c_str(),
+                     fourever::keyName (clip.detected.alternatives[2]).c_str());
+
+    // --- Notas tal como quedan en el MIDI ----------------------------------------
+    std::printf ("\n  #  Nota (FL)  MIDI   Inicio (negras)  Largo (negras)\n");
+    for (std::size_t i = 0; i < clip.notes.size(); ++i)
     {
-        const auto& n = notes[i];
-        std::printf ("%3zu  %-9s  %4d   %6.3f s   %8.2f          %4.0f ms\n", i + 1,
+        const auto& n = clip.notes[i];
+        std::printf ("%3zu  %-9s  %4d   %8.3f         %8.3f\n", i + 1,
                      juce::MidiMessage::getMidiNoteName (n.midiNote, true, true, 5).toRawUTF8(),
-                     n.midiNote, n.startSec, (n.startSec - t0) / beatSec, (n.endSec - n.startSec) * 1000.0);
+                     n.midiNote, n.startBeat, n.lengthBeat);
     }
 
     fourever::MidiExportSettings exportSettings;
     exportSettings.bpm = bpm;
-    if (! fourever::writeMidiFile (output, notes, exportSettings))
+    if (! fourever::writeMidiFile (output, clip.notes, exportSettings))
     {
         std::fprintf (stderr, "\nNo se pudo escribir %s\n", output.getFullPathName().toRawUTF8());
         return 1;
     }
 
-    std::printf ("\n%zu notas -> %s (%.0f BPM)\n", notes.size(), output.getFullPathName().toRawUTF8(), bpm);
+    std::printf ("\n%zu notas -> %s (%.0f BPM)\n", clip.notes.size(), output.getFullPathName().toRawUTF8(), bpm);
     return 0;
 }

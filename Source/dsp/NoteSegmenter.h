@@ -12,6 +12,7 @@ struct NoteEvent
     double startSec  = 0.0;
     double endSec    = 0.0;
     int    midiNote  = 60;   // 60 = C5 en FL Studio (C4 en la convencion "cientifica")
+    float  pitch     = 60.0f; // altura medida con decimales (60.4 = un poco alto de C5)
     float  velocity  = 0.8f; // 0..1
 };
 

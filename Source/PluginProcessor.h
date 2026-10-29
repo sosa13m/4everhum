@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dsp/Analyzer.h"
+#include "dsp/Music.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -15,6 +16,10 @@ inline constexpr auto minNote     = "minNote";
 inline constexpr auto stability   = "stability";
 inline constexpr auto octave      = "octave";
 inline constexpr auto autoGate    = "autoGate";
+inline constexpr auto keyRoot     = "keyRoot";
+inline constexpr auto scale       = "scale";
+inline constexpr auto quantize    = "quantize";
+inline constexpr auto strength    = "strength";
 } // namespace paramIds
 
 // 4EVERHUM: efecto de audio que se pone en el track del mixer donde entra el
@@ -33,6 +38,8 @@ public:
         std::vector<float> samples;
         double sampleRate = 44100.0;
         double bpm        = 120.0; // tempo del proyecto al grabar
+        double hostPpq    = -1.0;  // negra del proyecto donde empezo la toma (<0 = FL detenido)
+        int    beatsPerBar = 4;
     };
 
     FourEverHumProcessor();
@@ -74,17 +81,25 @@ public:
     float  getInputLevel() const         { return inputLevel.load(); }
     double getHostBpm() const            { return hostBpm.load(); }
     double getResultBpm() const          { return resultBpm.load(); } // tempo al momento de grabar
+    int    getResultBeatsPerBar() const  { return resultBeatsPerBar.load(); }
 
     // Cambia cuando hay notas nuevas o cuando cambia la octava.
     int    getResultVersion() const      { return resultVersion.load(); }
 
-    // Notas listas para mostrar/exportar (con la octava ya aplicada).
-    std::vector<fourever::NoteEvent> getNotes() const;
+    // La melodia final, tal como se ve y se arrastra: en negras, con escala,
+    // grid y octava aplicados.
+    fourever::Clip getClip() const;
 
     // Ultima toma (nullptr si no hay: p. ej. tras reabrir el proyecto).
     std::shared_ptr<const Take> getLastTake() const;
 
     fourever::UserSettings currentSettings() const;
+    fourever::ClipSettings currentClipSettings() const;
+
+    // Opciones de los parametros de eleccion (las usa el editor para sus combos).
+    static const juce::StringArray& keyChoices();
+    static const juce::StringArray& scaleChoices();
+    static const juce::StringArray& quantizeChoices();
 
     juce::AudioProcessorValueTreeState params;
 
@@ -112,6 +127,16 @@ private:
     std::atomic<float>* stabilityParam   = nullptr;
     std::atomic<float>* octaveParam      = nullptr;
     std::atomic<float>* autoGateParam    = nullptr;
+    std::atomic<float>* keyRootParam     = nullptr;
+    std::atomic<float>* scaleParam       = nullptr;
+    std::atomic<float>* quantizeParam    = nullptr;
+    std::atomic<float>* strengthParam    = nullptr;
+
+    // Posicion del proyecto al empezar a grabar (la captura el audio thread en
+    // el primer bloque de la toma).
+    std::atomic<bool>   needStartPosition { false };
+    std::atomic<double> takeStartPpq { -1.0 };
+    std::atomic<int>    takeBeatsPerBar { 4 };
 
     // Re-analisis con "debounce": mientras giras una perilla no se analiza en
     // cada paso, sino un instante despues de soltarla.
@@ -125,6 +150,8 @@ private:
     std::shared_ptr<const Take>      lastTake;
     std::atomic<int>     resultVersion { 0 };
     std::atomic<double>  resultBpm { 120.0 };
+    std::atomic<double>  resultHostPpq { -1.0 };
+    std::atomic<int>     resultBeatsPerBar { 4 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FourEverHumProcessor)
 };

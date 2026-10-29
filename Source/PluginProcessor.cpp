@@ -6,9 +6,36 @@ namespace
 const juce::StringArray octaveChoices { "-2", "-1", "0", "+1", "+2" };
 constexpr int octaveZeroIndex = 2;
 
-const juce::StringArray settingIds { paramIds::sensitivity, paramIds::minNote,
-                                     paramIds::stability, paramIds::octave, paramIds::autoGate };
+// Parametros que cambian el analisis (requieren re-analizar la toma)...
+const juce::StringArray analysisIds { paramIds::sensitivity, paramIds::minNote,
+                                      paramIds::stability, paramIds::autoGate };
+// ...y los que solo cambian el clip final (instantaneos).
+const juce::StringArray clipIds { paramIds::octave, paramIds::keyRoot, paramIds::scale,
+                                  paramIds::quantize, paramIds::strength };
 } // namespace
+
+const juce::StringArray& FourEverHumProcessor::keyChoices()
+{
+    static const juce::StringArray c { "Auto", "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B" };
+    return c;
+}
+
+const juce::StringArray& FourEverHumProcessor::scaleChoices()
+{
+    // Mismo orden que fourever::Scale.
+    static const juce::StringArray c { "Auto", "Mayor", "Menor", juce::String::fromUTF8 ("Menor armónica"),
+                                       juce::String::fromUTF8 ("Dórica"), "Frigia",
+                                       juce::String::fromUTF8 ("Pentatónica mayor"),
+                                       juce::String::fromUTF8 ("Pentatónica menor"), "Sin escala" };
+    return c;
+}
+
+const juce::StringArray& FourEverHumProcessor::quantizeChoices()
+{
+    // Mismo orden que fourever::Grid.
+    static const juce::StringArray c { "Apagado", "1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T" };
+    return c;
+}
 
 juce::AudioProcessorValueTreeState::ParameterLayout FourEverHumProcessor::createLayout()
 {
@@ -36,6 +63,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout FourEverHumProcessor::create
     layout.add (std::make_unique<AudioParameterBool> (
         ParameterID { paramIds::autoGate, 1 }, "Filtro de ruido", true));
 
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { paramIds::keyRoot, 1 }, "Tonalidad", keyChoices(), 0));
+
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { paramIds::scale, 1 }, "Escala", scaleChoices(), 0));
+
+    layout.add (std::make_unique<AudioParameterChoice> (
+        ParameterID { paramIds::quantize, 1 }, "Cuantizar", quantizeChoices(), 3)); // 1/16
+
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { paramIds::strength, 1 }, "Fuerza",
+        NormalisableRange<float> (0.0f, 100.0f, 1.0f), 100.0f,
+        AudioParameterFloatAttributes().withLabel ("%")));
+
     return layout;
 }
 
@@ -50,9 +91,14 @@ FourEverHumProcessor::FourEverHumProcessor()
     stabilityParam   = params.getRawParameterValue (paramIds::stability);
     octaveParam      = params.getRawParameterValue (paramIds::octave);
     autoGateParam    = params.getRawParameterValue (paramIds::autoGate);
+    keyRootParam     = params.getRawParameterValue (paramIds::keyRoot);
+    scaleParam       = params.getRawParameterValue (paramIds::scale);
+    quantizeParam    = params.getRawParameterValue (paramIds::quantize);
+    strengthParam    = params.getRawParameterValue (paramIds::strength);
 
-    for (const auto& id : settingIds)
-        params.addParameterListener (id, this);
+    for (const auto* ids : { &analysisIds, &clipIds })
+        for (const auto& id : *ids)
+            params.addParameterListener (id, this);
 
     startTimerHz (20);
 }
@@ -60,8 +106,9 @@ FourEverHumProcessor::FourEverHumProcessor()
 FourEverHumProcessor::~FourEverHumProcessor()
 {
     stopTimer();
-    for (const auto& id : settingIds)
-        params.removeParameterListener (id, this);
+    for (const auto* ids : { &analysisIds, &clipIds })
+        for (const auto& id : *ids)
+            params.removeParameterListener (id, this);
     analysisPool.removeAllJobs (true, 5000);
 }
 
@@ -101,11 +148,26 @@ void FourEverHumProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     for (int ch = numIn; ch < getTotalNumOutputChannels(); ++ch)
         buffer.clear (ch, 0, numSamples);
 
-    // Tempo del DAW (para exportar el MIDI alineado al proyecto).
+    // Tempo del DAW y, en el primer bloque de una toma, donde estaba el proyecto.
+    const bool captureStart = recording.load (std::memory_order_acquire) && needStartPosition.load();
     if (auto* ph = getPlayHead())
+    {
         if (auto pos = ph->getPosition())
+        {
             if (auto bpm = pos->getBpm())
                 hostBpm.store (*bpm);
+
+            if (captureStart)
+            {
+                const auto ppq = pos->getPpqPosition();
+                takeStartPpq.store (pos->getIsPlaying() && ppq.hasValue() ? *ppq : -1.0);
+                if (auto sig = pos->getTimeSignature())
+                    takeBeatsPerBar.store (juce::jmax (1, sig->numerator * 4 / juce::jmax (1, sig->denominator)));
+            }
+        }
+    }
+    if (captureStart)
+        needStartPosition.store (false);
 
     // Medidor de entrada.
     float peak = 0.0f;
@@ -156,6 +218,9 @@ void FourEverHumProcessor::startRecording()
         return;
 
     writePos.store (0, std::memory_order_relaxed);
+    takeStartPpq.store (-1.0);
+    takeBeatsPerBar.store (4);
+    needStartPosition.store (true);
     state.store (State::recording);
     recording.store (true, std::memory_order_release);
 }
@@ -173,6 +238,8 @@ void FourEverHumProcessor::stopRecording()
     take->samples.assign (recordBuffer.begin(), recordBuffer.begin() + n);
     take->sampleRate = currentSampleRate;
     take->bpm        = hostBpm.load();
+    take->hostPpq    = needStartPosition.load() ? -1.0 : takeStartPpq.load();
+    take->beatsPerBar = takeBeatsPerBar.load();
 
     {
         const juce::ScopedLock sl (resultLock);
@@ -197,6 +264,8 @@ void FourEverHumProcessor::launchAnalysis (std::shared_ptr<const Take> take)
             notes = std::move (result);
         }
         resultBpm.store (take->bpm);
+        resultHostPpq.store (take->hostPpq);
+        resultBeatsPerBar.store (take->beatsPerBar);
         ++resultVersion;
         state.store (State::ready);
     });
@@ -205,9 +274,9 @@ void FourEverHumProcessor::launchAnalysis (std::shared_ptr<const Take> take)
 void FourEverHumProcessor::parameterChanged (const juce::String& id, float)
 {
     // Puede llamarse desde el audio thread (automatizacion): solo atomics.
-    if (id == paramIds::octave)
+    if (clipIds.contains (id))
     {
-        ++resultVersion; // la octava no requiere re-analizar
+        ++resultVersion; // escala, grid y octava no requieren re-analizar
         return;
     }
     lastSettingsChangeMs.store (juce::Time::getMillisecondCounter());
@@ -237,14 +306,28 @@ double FourEverHumProcessor::getRecordedSeconds() const
     return currentSampleRate > 0.0 ? writePos.load() / currentSampleRate : 0.0;
 }
 
-std::vector<fourever::NoteEvent> FourEverHumProcessor::getNotes() const
+fourever::ClipSettings FourEverHumProcessor::currentClipSettings() const
+{
+    fourever::ClipSettings c;
+    c.bpm            = resultBpm.load();
+    c.hostPpqAtStart = resultHostPpq.load();
+    c.beatsPerBar    = resultBeatsPerBar.load();
+    c.keyRoot        = juce::roundToInt (keyRootParam->load()) - 1; // 0 = Auto -> -1
+    c.scale          = (fourever::Scale) juce::jlimit (0, scaleChoices().size() - 1, juce::roundToInt (scaleParam->load()));
+    c.grid           = (fourever::Grid) juce::jlimit (0, quantizeChoices().size() - 1, juce::roundToInt (quantizeParam->load()));
+    c.strength       = strengthParam->load() / 100.0f;
+    c.octaves        = octaveShift();
+    return c;
+}
+
+fourever::Clip FourEverHumProcessor::getClip() const
 {
     std::vector<fourever::NoteEvent> copy;
     {
         const juce::ScopedLock sl (resultLock);
         copy = notes;
     }
-    return fourever::transposeOctaves (std::move (copy), octaveShift());
+    return fourever::makeClip (copy, currentClipSettings());
 }
 
 std::shared_ptr<const FourEverHumProcessor::Take> FourEverHumProcessor::getLastTake() const
@@ -260,6 +343,8 @@ void FourEverHumProcessor::getStateInformation (juce::MemoryBlock& destData)
     juce::ValueTree tree ("4EVERHUM");
     tree.setProperty ("version", 2, nullptr);
     tree.setProperty ("bpm", resultBpm.load(), nullptr);
+    tree.setProperty ("hostPpq", resultHostPpq.load(), nullptr);
+    tree.setProperty ("beatsPerBar", resultBeatsPerBar.load(), nullptr);
     tree.appendChild (params.copyState(), nullptr);
 
     std::vector<fourever::NoteEvent> raw;
@@ -274,6 +359,7 @@ void FourEverHumProcessor::getStateInformation (juce::MemoryBlock& destData)
         nt.setProperty ("start", n.startSec, nullptr);
         nt.setProperty ("end",   n.endSec,   nullptr);
         nt.setProperty ("pitch", n.midiNote, nullptr);
+        nt.setProperty ("pitchExact", n.pitch, nullptr);
         nt.setProperty ("vel",   n.velocity, nullptr);
         tree.appendChild (nt, nullptr);
     }
@@ -289,6 +375,8 @@ void FourEverHumProcessor::setStateInformation (const void* data, int sizeInByte
         return;
 
     resultBpm.store ((double) tree.getProperty ("bpm", 120.0));
+    resultHostPpq.store ((double) tree.getProperty ("hostPpq", -1.0));
+    resultBeatsPerBar.store ((int) tree.getProperty ("beatsPerBar", 4));
 
     const auto paramState = tree.getChildWithName (params.state.getType());
     if (paramState.isValid())
@@ -303,6 +391,7 @@ void FourEverHumProcessor::setStateInformation (const void* data, int sizeInByte
         n.startSec = nt.getProperty ("start");
         n.endSec   = nt.getProperty ("end");
         n.midiNote = nt.getProperty ("pitch");
+        n.pitch    = (float) (double) nt.getProperty ("pitchExact", (double) n.midiNote);
         n.velocity = (float) (double) nt.getProperty ("vel");
         loaded.push_back (n);
     }
@@ -316,7 +405,7 @@ void FourEverHumProcessor::setStateInformation (const void* data, int sizeInByte
 
     const auto s = state.load();
     if (s == State::idle || s == State::ready)
-        state.store (getNotes().empty() ? State::idle : State::ready);
+        state.store (getClip().notes.empty() ? State::idle : State::ready);
 }
 
 juce::AudioProcessorEditor* FourEverHumProcessor::createEditor()

@@ -16,8 +16,10 @@ option(FOUREVERHUM_BUILD_TOOLS  "Compilar la herramienta hum2midi"    ON)
 add_library(fourever_dsp STATIC
     Source/dsp/PitchTracker.cpp
     Source/dsp/NoteSegmenter.cpp
-    Source/dsp/Analyzer.cpp)
+    Source/dsp/Analyzer.cpp
+    Source/dsp/Music.cpp)
 target_include_directories(fourever_dsp PUBLIC Source)
+set_target_properties(fourever_dsp PROPERTIES POSITION_INDEPENDENT_CODE ON) # va dentro del VST3 (libreria compartida)
 if(MSVC)
     target_compile_options(fourever_dsp PRIVATE /W4)
 else()
@@ -29,6 +31,10 @@ if(FOUREVERHUM_BUILD_TESTS)
     add_executable(dsp_tests tests/test_dsp.cpp)
     target_link_libraries(dsp_tests PRIVATE fourever_dsp)
     add_test(NAME dsp_tests COMMAND dsp_tests)
+
+    add_executable(music_tests tests/test_music.cpp)
+    target_link_libraries(music_tests PRIVATE fourever_dsp)
+    add_test(NAME music_tests COMMAND music_tests)
 endif()
 
 if(NOT FOUREVERHUM_BUILD_PLUGIN)

@@ -21,6 +21,15 @@ public:
 private:
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    using ComboAttachment  = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
+
+    // Menu desplegable + su etiqueta.
+    struct Choice
+    {
+        juce::ComboBox box;
+        juce::Label    label;
+        std::unique_ptr<ComboAttachment> attachment;
+    };
 
     // Perilla + su etiqueta.
     struct Knob
@@ -32,6 +41,9 @@ private:
 
     void timerCallback() override;
     void setupKnob (Knob&, const juce::String& paramId, const juce::String& title, const juce::String& tooltip);
+    void setupChoice (Choice&, const juce::String& paramId, const juce::String& title,
+                      const juce::StringArray& items, const juce::String& tooltip);
+    juce::String keyLabelForFile() const;
     void toggleRecording();
     void saveMidiAs();
     void saveTakeAs();
@@ -43,6 +55,8 @@ private:
     void paintHeader (juce::Graphics&);
     void paintMeter (juce::Graphics&);
     void paintCard (juce::Graphics&);
+    void paintKeyStamp (juce::Graphics&);
+    void paintRowTab (juce::Graphics&, juce::Rectangle<int> row, const juce::String& title);
 
     FourEverHumProcessor& processor;
     HumLookAndFeel lookAndFeel;
@@ -54,7 +68,8 @@ private:
     juce::Label      statusLabel;
     NotePreview      preview;
 
-    Knob sensitivityKnob, minNoteKnob, stabilityKnob;
+    Knob sensitivityKnob, minNoteKnob, stabilityKnob, strengthKnob;
+    Choice keyChoice, scaleChoice, quantizeChoice;
 
     juce::Label octaveLabel;
     std::array<juce::TextButton, 5> octaveButtons;
@@ -67,6 +82,8 @@ private:
     juce::Image wallGrain, xeroxGrain;
 
     juce::Rectangle<int> headerArea, meterArea, cardArea, previewArea, controlsArea, bpmBadgeArea;
+    juce::Rectangle<int> detectionRow, musicRow, stampArea;
+    fourever::Clip currentClip;
     float  meterLevel   = 0.0f;
     int    shownVersion = -1;
     double shownBpm     = -1.0;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dsp/NoteSegmenter.h"
+#include "dsp/Music.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -15,8 +15,8 @@ class NotePreview final : public juce::Component
 public:
     NotePreview();
 
-    void setNotes (std::vector<fourever::NoteEvent> newNotes, double bpm);
-    bool hasNotes() const { return ! notes.empty(); }
+    void setClip (fourever::Clip newClip, int beatsPerBar);
+    bool hasNotes() const { return ! clip.notes.empty(); }
 
     // Lo asigna el editor: escribe el .mid y devuelve el archivo.
     std::function<juce::File()> createMidiFileForDrag;
@@ -26,8 +26,8 @@ public:
     void mouseUp (const juce::MouseEvent&) override { dragStarted = false; }
 
 private:
-    std::vector<fourever::NoteEvent> notes;
-    double bpm = 120.0;
+    fourever::Clip clip;
+    int beatsPerBar = 4;
     bool dragStarted = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NotePreview)

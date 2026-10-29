@@ -4,6 +4,7 @@
 //   cmake -B build -DFOUREVERHUM_BUILD_PLUGIN=OFF && cmake --build build && ctest --test-dir build
 
 #include "dsp/Analyzer.h"
+#include "dsp/Music.h"
 #include "dsp/NoteSegmenter.h"
 #include "dsp/PitchTracker.h"
 
@@ -210,6 +211,53 @@ void runTranspose()
     check (up[2].midiNote == 120, "una nota que se saldria del rango MIDI no se pierde");
     check (down[0].midiNote == 24 && down[1].midiNote == 36, "-2 octavas resta 24 semitonos");
 }
+
+void runSloppySinger()
+{
+    // Un "cantante" humano a 100 BPM en corcheas (0.3 s): cada nota desafinada
+    // hasta +-35 cents y entrando hasta 40 ms antes o despues del pulso.
+    std::printf ("\nCantante desafinado y fuera de tiempo -> escala + grid\n");
+    const double sr = 48000.0, eighth = 0.3;
+    const int    notes[]  { 57, 60, 64, 62, 60, 59, 57, 64 };   // La menor
+    const double cents[]  { 0.30, -0.35, 0.25, -0.30, 0.35, -0.20, 0.15, -0.35 };
+    const double jitter[] { 0.0, 0.030, -0.025, 0.040, -0.035, 0.020, -0.040, 0.025 };
+
+    std::vector<float> audio ((std::size_t) (0.3 * sr), 0.0f);
+    double phase = 0.0, cursor = 0.3;
+    for (int i = 0; i < 8; ++i)
+    {
+        const double start = 0.3 + i * eighth + jitter[i];
+        while (cursor < start) { audio.push_back (0.0f); cursor += 1.0 / sr; }
+        const double dur = eighth * 0.7;
+        for (int k = 0; k < (int) (dur * sr); ++k)
+        {
+            const double t = k / sr;
+            phase += 2.0 * pi * midiToHz (notes[i] + cents[i] + 0.15 * std::sin (2 * pi * 5.0 * t)) / sr;
+            const double env = std::min ({ 1.0, t / 0.015, (dur - t) / 0.025 });
+            audio.push_back ((float) (0.25 * env * (std::sin (phase) + 0.5 * std::sin (2 * phase))));
+            cursor += 1.0 / sr;
+        }
+    }
+    audio.resize (audio.size() + (std::size_t) (0.3 * sr), 0.0f);
+
+    const auto analyzed = analyze (audio.data(), audio.size(), sr, UserSettings{});
+    ClipSettings cs;
+    cs.bpm  = 100.0;
+    cs.grid = Grid::eighth;
+    const auto clip = makeClip (analyzed, cs);
+
+    std::printf ("    tonalidad: %s (%s)\n", keyName (clip.key).c_str(), camelot (clip.key).c_str());
+    bool pitches = clip.notes.size() == 8, timing = clip.notes.size() == 8;
+    for (std::size_t i = 0; i < clip.notes.size() && i < 8; ++i)
+    {
+        std::printf ("    nota %d en la negra %.3f\n", clip.notes[i].midiNote, clip.notes[i].startBeat);
+        pitches &= clip.notes[i].midiNote == notes[i];
+        timing  &= std::abs (clip.notes[i].startBeat - 0.5 * (double) i) < 1.0e-6;
+    }
+    check (keyName (clip.key) == "Am", "detecta La menor");
+    check (pitches, "las 8 alturas quedan exactas pese a desafinar hasta 35 cents");
+    check (timing, "las 8 notas caen exacto en corcheas pese a +-40 ms de error");
+}
 } // namespace
 
 int main()
@@ -222,6 +270,7 @@ int main()
     runQuietVoice();
     runMinNote();
     runTranspose();
+    runSloppySinger();
 
     std::printf ("\n%s (%d fallos)\n", failures == 0 ? "TODO OK" : "HAY FALLOS", failures);
     return failures == 0 ? 0 : 1;

@@ -7,8 +7,8 @@
 
 namespace
 {
-constexpr int editorWidth  = 800;
-constexpr int editorHeight = 600;
+constexpr int editorWidth  = 1000;
+constexpr int editorHeight = 700;
 constexpr int headerHeight = 70;
 
 void setStyle (juce::Component& c, const char* style)
@@ -66,6 +66,19 @@ FourEverHumEditor::FourEverHumEditor (FourEverHumProcessor& p)
     setupKnob (stabilityKnob, paramIds::stability, "ESTABILIDAD",
                theme::ui ("Cuánto ignora el vibrato y las desafinaciones. "
                           "Súbela si una nota larga se parte en varias."));
+
+    // --- Musica: tonalidad, escala y grid ------------------------------------
+    setupChoice (keyChoice, paramIds::keyRoot, "TONALIDAD", FourEverHumProcessor::keyChoices(),
+                 theme::ui ("Auto detecta la tonalidad de lo que cantaste. Si ya sabes en qué tonalidad "
+                            "está tu beat, elígela aquí y las notas se ajustan a ella."));
+    setupChoice (scaleChoice, paramIds::scale, "ESCALA", FourEverHumProcessor::scaleChoices(),
+                 theme::ui ("Las notas desafinadas caen en la nota más cercana de esta escala. "
+                            "Auto usa mayor o menor según la tonalidad. \"Sin escala\" deja la altura tal cual."));
+    setupChoice (quantizeChoice, paramIds::quantize, "CUANTIZAR", FourEverHumProcessor::quantizeChoices(),
+                 theme::ui ("Ajusta los tiempos al grid: 1/16 para melodías rápidas, 1/8 para algo más suelto, "
+                            "T = tresillos. Apagado deja tu ritmo tal cual."));
+    setupKnob (strengthKnob, paramIds::strength, "FUERZA",
+               theme::ui ("Cuánto se acercan las notas al grid. 100% = exacto; menos deja algo de tu groove."));
 
     // --- Octava: selector segmentado, como los de 4EVERTOOLS ------------------
     octaveLabel.setText ("OCTAVA", juce::dontSendNotification);
@@ -134,6 +147,27 @@ void FourEverHumEditor::setupKnob (Knob& k, const juce::String& paramId, const j
     k.attachment = std::make_unique<SliderAttachment> (processor.params, paramId, k.slider);
 }
 
+void FourEverHumEditor::setupChoice (Choice& c, const juce::String& paramId, const juce::String& title,
+                                     const juce::StringArray& items, const juce::String& tooltip)
+{
+    c.box.addItemList (items, 1);
+    c.box.setTooltip (tooltip);
+    addAndMakeVisible (c.box);
+
+    c.label.setText (title, juce::dontSendNotification);
+    styleCaption (c.label);
+    addAndMakeVisible (c.label);
+
+    c.attachment = std::make_unique<ComboAttachment> (processor.params, paramId, c.box);
+}
+
+juce::String FourEverHumEditor::keyLabelForFile() const
+{
+    if (currentClip.notes.empty() || currentClip.scaleUsed == fourever::Scale::none)
+        return {};
+    return juce::String (fourever::keyName (currentClip.key));
+}
+
 juce::File FourEverHumEditor::tempFolder()
 {
     auto dir = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("4EVERHUM");
@@ -161,22 +195,22 @@ void FourEverHumEditor::showStatus (const juce::String& text)
 juce::File FourEverHumEditor::writeTempMidi()
 {
     const auto bpm  = processor.getResultBpm();
-    const auto file = tempFolder().getChildFile (fourever::suggestedMidiFileName (bpm));
+    const auto file = tempFolder().getChildFile (fourever::suggestedMidiFileName (bpm, keyLabelForFile()));
     fourever::MidiExportSettings settings;
     settings.bpm = bpm;
 
-    if (! fourever::writeMidiFile (file, processor.getNotes(), settings))
+    if (! fourever::writeMidiFile (file, processor.getClip().notes, settings))
         return {};
     return file;
 }
 
 void FourEverHumEditor::saveMidiAs()
 {
-    if (processor.getNotes().empty())
+    if (currentClip.notes.empty())
         return;
 
     const auto start = juce::File::getSpecialLocation (juce::File::userMusicDirectory)
-                           .getChildFile (fourever::suggestedMidiFileName (processor.getResultBpm()));
+                           .getChildFile (fourever::suggestedMidiFileName (processor.getResultBpm(), keyLabelForFile()));
 
     fileChooser = std::make_unique<juce::FileChooser> (theme::ui ("Guardar melodía como MIDI"), start, "*.mid");
     fileChooser->launchAsync (juce::FileBrowserComponent::saveMode
@@ -191,7 +225,7 @@ void FourEverHumEditor::saveMidiAs()
 
                                   fourever::MidiExportSettings settings;
                                   settings.bpm = processor.getResultBpm();
-                                  const bool ok = fourever::writeMidiFile (file, processor.getNotes(), settings);
+                                  const bool ok = fourever::writeMidiFile (file, processor.getClip().notes, settings);
                                   showStatus (ok ? theme::ui ("Guardado: ") + file.getFileName()
                                                  : theme::ui ("No se pudo guardar el archivo."));
                               });
@@ -259,7 +293,9 @@ void FourEverHumEditor::timerCallback()
     if (processor.getResultVersion() != shownVersion)
     {
         shownVersion = processor.getResultVersion();
-        preview.setNotes (processor.getNotes(), processor.getResultBpm());
+        currentClip  = processor.getClip();
+        preview.setClip (currentClip, processor.getResultBeatsPerBar());
+        repaint (stampArea.expanded (12));
     }
     saveMidiButton.setEnabled (preview.hasNotes() && ! isRec);
     saveWavButton.setEnabled (processor.getLastTake() != nullptr && ! isRec);
@@ -278,9 +314,13 @@ void FourEverHumEditor::timerCallback()
             case State::analyzing: status = theme::ui ("Analizando tu voz…"); break;
             case State::ready:
             {
-                const auto n = preview.hasNotes() ? processor.getNotes().size() : (size_t) 0;
+                const auto n = currentClip.notes.size();
                 if (n == 0)
                     status = theme::ui ("No se detectaron notas. Sube la Sensibilidad o acércate al micrófono.");
+                else if (currentClip.alignedToProject)
+                    status = juce::String ((int) n) + theme::ui (" notas, alineadas desde el compás ")
+                           + juce::String (juce::roundToInt (currentClip.originBeat / juce::jmax (1, processor.getResultBeatsPerBar())) + 1)
+                           + theme::ui (" del proyecto.");
                 else
                     status = juce::String ((int) n) + theme::ui (n == 1 ? " nota detectada." : " notas detectadas.")
                            + (processor.getLastTake() != nullptr ? theme::ui (" Gira las perillas para afinar el resultado.") : juce::String());
@@ -307,6 +347,69 @@ void FourEverHumEditor::paint (juce::Graphics& g)
     paintHeader (g);
     paintMeter (g);
     paintCard (g);
+    paintRowTab (g, detectionRow, theme::ui ("DETECCIÓN"));
+    paintRowTab (g, musicRow, theme::ui ("MÚSICA"));
+    paintKeyStamp (g);
+}
+
+void FourEverHumEditor::paintRowTab (juce::Graphics& g, juce::Rectangle<int> row, const juce::String& title)
+{
+    // Pestana de tinta con el titulo de la fila, como las pestanas de un flyer.
+    const auto tab = row.removeFromLeft (24).toFloat().reduced (0.0f, 4.0f);
+    g.setColour (theme::ink);
+    g.fillRect (tab);
+
+    juce::Graphics::ScopedSaveState save (g);
+    g.addTransform (juce::AffineTransform::rotation (-juce::MathConstants<float>::halfPi, tab.getCentreX(), tab.getCentreY()));
+    g.setColour (theme::paper);
+    g.setFont (theme::mono (10.0f, true));
+    g.drawText (title, juce::Rectangle<float> (tab.getHeight(), tab.getWidth()).withCentre (tab.getCentre()),
+                juce::Justification::centred);
+}
+
+void FourEverHumEditor::paintKeyStamp (juce::Graphics& g)
+{
+    if (currentClip.notes.empty())
+        return;
+
+    // Timbre de goma rojo con la tonalidad, estampado sobre la linea de corte.
+    const auto r = stampArea.toFloat();
+    juce::Graphics::ScopedSaveState save (g);
+    g.addTransform (juce::AffineTransform::rotation (-0.04f, r.getCentreX(), r.getCentreY()));
+
+    const auto ink = theme::red.withAlpha (0.92f);
+    g.setColour (theme::paperLight.withAlpha (0.85f));
+    g.fillRect (r);
+    g.setColour (ink);
+    g.drawRect (r, 2.5f);
+    g.drawRect (r.reduced (4.0f), 1.0f);
+
+    const bool known = currentClip.scaleUsed != fourever::Scale::none;
+    const bool chosen = processor.currentClipSettings().keyRoot >= 0;
+
+    auto inner = r.reduced (12.0f, 6.0f);
+    g.setFont (theme::anton (20.0f));
+    if (known)
+    {
+        g.drawText (juce::String (fourever::keyNameSpanish (currentClip.key)).toUpperCase(),
+                    inner.removeFromTop (22.0f), juce::Justification::centredLeft);
+        g.setFont (theme::mono (11.0f, true));
+        // El nombre de la escala solo aparece si no es la mayor/menor de la propia tonalidad.
+        const bool plainMode = currentClip.scaleUsed == (currentClip.key.minor ? fourever::Scale::minor : fourever::Scale::major);
+        const auto scaleName = plainMode ? juce::String()
+                                         : "  " + FourEverHumProcessor::scaleChoices()[(int) currentClip.scaleUsed].toUpperCase();
+        g.drawText (juce::String (fourever::keyName (currentClip.key)) + theme::ui (" · ") + juce::String (fourever::camelot (currentClip.key))
+                        + scaleName + (chosen ? theme::ui (" · ELEGIDA") : theme::ui (" · DETECTADA")),
+                    inner, juce::Justification::centredLeft);
+    }
+    else
+    {
+        g.drawText ("SIN ESCALA", inner.removeFromTop (22.0f), juce::Justification::centredLeft);
+        g.setFont (theme::mono (11.0f, true));
+        g.drawText (currentClip.detected.valid ? theme::ui ("alturas tal cual las cantaste")
+                                               : theme::ui ("muy pocas notas para detectar tonalidad"),
+                    inner, juce::Justification::centredLeft);
+    }
 }
 
 void FourEverHumEditor::paintWall (juce::Graphics& g)
@@ -482,36 +585,64 @@ void FourEverHumEditor::resized()
     statusLabel.setBounds (row);
 
     // Hoja de trabajo.
-    cardArea = juce::Rectangle<int> (22, headerHeight + 100, getWidth() - 44, 0)
+    cardArea = juce::Rectangle<int> (22, headerHeight + 92, getWidth() - 44, 0)
                    .withBottom (getHeight() - 22);
-    auto inner = cardArea.reduced (22, 0).withTrimmedTop (28).withTrimmedBottom (18);
+    auto inner = cardArea.reduced (22, 0).withTrimmedTop (28).withTrimmedBottom (16);
 
-    controlsArea = inner.removeFromBottom (128);
-    inner.removeFromBottom (30);
+    controlsArea = inner.removeFromBottom (210);
+    inner.removeFromBottom (36);
     previewArea = inner;
     preview.setBounds (previewArea);
 
-    // Controles: perillas | octava + filtro | exportar
+    const int cutY = controlsArea.getY() - 13;
+    stampArea = juce::Rectangle<int> (controlsArea.getRight() - 236, cutY - 24, 236, 48);
+
+    // Controles: dos filas (DETECCION y MUSICA) | botones de exportar
     auto controls = controlsArea;
-    auto buttons = controls.removeFromRight (184);
-    saveMidiButton.setBounds (buttons.removeFromTop (60).withTrimmedTop (8));
-    saveWavButton.setBounds (buttons.removeFromTop (60).withTrimmedTop (8));
+    auto buttons = controls.removeFromRight (176).withSizeKeepingCentre (176, 128);
+    saveMidiButton.setBounds (buttons.removeFromTop (60).withTrimmedTop (4));
+    buttons.removeFromTop (8);
+    saveWavButton.setBounds (buttons.removeFromTop (60).withTrimmedTop (4));
     controls.removeFromRight (16);
 
+    detectionRow = controls.removeFromTop (100);
+    controls.removeFromTop (10);
+    musicRow = controls.removeFromTop (100);
+
+    auto placeKnob = [] (Knob& k, juce::Rectangle<int> col)
+    {
+        k.label.setBounds (col.removeFromTop (20));
+        k.slider.setBounds (col);
+    };
+    auto placeChoice = [] (Choice& c, juce::Rectangle<int> col)
+    {
+        c.label.setBounds (col.removeFromTop (20));
+        c.box.setBounds (col.withTrimmedTop (10).removeFromTop (42));
+    };
+
+    // Fila 1: DETECCION
+    auto ctl = detectionRow.withTrimmedLeft (34);
     for (auto* k : { &sensitivityKnob, &minNoteKnob, &stabilityKnob })
     {
-        auto col = controls.removeFromLeft (100);
-        k->label.setBounds (col.removeFromTop (20));
-        k->slider.setBounds (col);
-        controls.removeFromLeft (4);
+        placeKnob (*k, ctl.removeFromLeft (100));
+        ctl.removeFromLeft (6);
     }
+    ctl.removeFromLeft (20);
+    autoGateToggle.setBounds (ctl.removeFromLeft (180).withSizeKeepingCentre (180, 28).translated (0, 6));
 
-    controls.removeFromLeft (12);
-    auto octave = controls.removeFromLeft (212);
+    // Fila 2: MUSICA
+    ctl = musicRow.withTrimmedLeft (34);
+    placeChoice (keyChoice, ctl.removeFromLeft (100));
+    ctl.removeFromLeft (8);
+    placeChoice (scaleChoice, ctl.removeFromLeft (168));
+    ctl.removeFromLeft (8);
+    placeChoice (quantizeChoice, ctl.removeFromLeft (100));
+    ctl.removeFromLeft (4);
+    placeKnob (strengthKnob, ctl.removeFromLeft (96));
+    ctl.removeFromLeft (4);
+    auto octave = ctl.removeFromLeft (5 * 34);
     octaveLabel.setBounds (octave.removeFromTop (20));
-    auto seg = octave.removeFromTop (46).withSizeKeepingCentre (5 * 42, 40);
+    auto seg = octave.withTrimmedTop (10).removeFromTop (42);
     for (auto& b : octaveButtons)
-        b.setBounds (seg.removeFromLeft (42));
-    octave.removeFromTop (12);
-    autoGateToggle.setBounds (octave.removeFromTop (28).withSizeKeepingCentre (170, 28));
+        b.setBounds (seg.removeFromLeft (34));
 }

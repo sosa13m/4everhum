@@ -5,14 +5,15 @@ voz tarareando, el plugin detecta las notas y te entrega un `.mid` que
 **arrastras directo al piano roll** de cualquier instrumento (Purity, Nexus,
 Serum…) en FL Studio, Ableton, Reaper, etc.
 
-**Estado: Sprint 2**
+**Estado: Sprint 3**
 - Sprint 1: grabación, detección de notas (YIN), exportación MIDI con el tempo del
   proyecto y arrastre al DAW.
 - Sprint 2: perillas de ajuste con re-análisis instantáneo (sin volver a grabar),
   filtro de ruido automático, transposición por octavas, exportar la toma en
   `.wav` y la herramienta de terminal `hum2midi`.
-
-Aún sin escala ni cuantización al grid (Sprint 3).
+- Sprint 3: detección de tonalidad (con código Camelot), ajuste a escala,
+  cuantización al grid con fuerza y tresillos, y notas alineadas al compás del
+  proyecto si grabas con FL sonando.
 
 ---
 
@@ -87,6 +88,29 @@ Las perillas se guardan con el proyecto del DAW y se pueden automatizar. La toma
 de audio no se guarda con el proyecto (para no inflarlo); si quieres conservarla,
 usa **Guardar toma .wav…**.
 
+## Tonalidad, escala y grid
+
+Se aplican después del análisis, así que cambiarlos es instantáneo y no hay que
+volver a grabar. Lo que ves en la hoja es exactamente lo que arrastras.
+
+- **Tonalidad**: en *Auto* el plugin detecta la tonalidad de lo que cantaste y la
+  estampa en el sello rojo (por ejemplo `LA MENOR · Am · 8A`, con el mismo código
+  Camelot del detector de 4EVERTOOLS). Si ya sabes en qué tonalidad está el beat,
+  elígela y las notas se ajustan a ella.
+- **Escala**: cada nota cae en la nota de la escala más cercana a lo que de
+  verdad cantaste (si cantaste entre Do y Re pero más cerca de Re, queda Re).
+  *Auto* usa mayor o menor según la tonalidad; también hay menor armónica,
+  dórica, frigia, pentatónicas y *Sin escala*.
+- **Cuantizar** y **Fuerza**: ajustan los tiempos al grid (1/4 a 1/32, y
+  tresillos 1/8T y 1/16T). Con fuerza 100% quedan exactos; con menos conservan
+  algo de tu groove, igual que el quantize de FL.
+- **Alineado al compás**: si pulsas Grabar con el proyecto de FL sonando, el
+  plugin anota en qué compás estabas. Al arrastrar, el clip empieza al inicio de
+  ese compás y cada nota cae donde la cantaste. Si grabas con FL detenido, la
+  primera nota cae en el tiempo 1.
+
+El `.mid` se nombra con la tonalidad: `4EVERHUM_Am_140bpm_….mid`.
+
 ## hum2midi (terminal)
 
 El mismo motor del plugin, para convertir grabaciones sin abrir el DAW. Sirve
@@ -97,11 +121,14 @@ para probar ajustes rápido sobre tus tomas reales (guardadas con **Guardar toma
 hum2midi toma.wav
 hum2midi toma.wav --bpm 140 --octava 1 -o melodia.mid
 hum2midi toma.wav --sensibilidad 70 --estabilidad 80
+hum2midi toma.wav --tonalidad Am --cuantizar 1/8
+hum2midi toma.wav --escala frigia --cuantizar 1/16T --fuerza 70
 hum2midi --ayuda
 ```
 
-Acepta WAV, AIFF, FLAC y MP3. Imprime cada nota con su nombre en la convención
-de FL (Do central = C5), su posición en negras y su duración.
+Acepta WAV, AIFF, FLAC y MP3. Imprime la tonalidad detectada (con Camelot y
+las alternativas) y cada nota con su nombre en la convención de FL (Do central =
+C5), su posición y su largo en negras, tal como quedan en el `.mid`.
 
 ## Probar el DSP sin compilar JUCE
 
@@ -116,6 +143,11 @@ verifican alturas exactas y tiempos de inicio (error < 50 ms) a 44.1, 48 y 96 kH
 También cubren cada perilla: el filtro de ruido con un bajo filtrándose al
 micrófono, la sensibilidad con voz muy suave, la nota mínima y las octavas.
 
+`music_tests` cubre el motor musical: tonalidad en las 12 transposiciones,
+Camelot, ajuste a escala, cuantización con fuerza y tresillos, y alineado al
+compás. Y una prueba de punta a punta canta una melodía desafinada hasta 35
+cents y desfasada hasta 40 ms: tiene que salir exacta en escala y en corcheas.
+
 ## Estructura
 
 ```
@@ -123,14 +155,15 @@ Source/
   dsp/PitchTracker.*     Deteccion de pitch YIN (decimado a ~16 kHz, sin JUCE)
   dsp/NoteSegmenter.*    Curva de pitch -> notas (mediana, histeresis, portamentos)
   dsp/Analyzer.*         Perillas -> parametros internos; analisis completo de una toma
+  dsp/Music.*            Tonalidad, Camelot, escalas, grid y el clip final en negras
   midi/MidiExporter.*    Notas -> .mid (960 PPQ, tempo del proyecto)
   ui/NotePreview.*       Mini piano roll + arrastre al DAW
   ui/HumLookAndFeel.*    Botones sticker, perillas, checkbox y tooltips
   ui/Theme.*             Paleta SOTANO 4EVER, tipografias, grano y cinta
-Resources/fonts/         Anton, Special Elite y Space Mono (con sus licencias)
-Resources/images/        Logo 4ever
   PluginProcessor.*      Grabacion lock-free + analisis en hilo de fondo
   PluginEditor.*         Interfaz
+Resources/fonts/         Anton, Special Elite y Space Mono (con sus licencias)
+Resources/images/        Logo 4ever
 tools/hum2midi.cpp       Conversor WAV -> MIDI por terminal
 tests/                   Tests del DSP y del export MIDI
 .github/workflows/       Build automatico del VST3 para Windows
@@ -157,6 +190,5 @@ https://juce.com/get-juce/ para ver qué plan te corresponde.
 
 ## Próximos sprints
 
-- **Sprint 3:** detección de tonalidad, ajuste a escala y cuantización al grid.
 - **Sprint 4:** edición de notas en el mini piano roll antes de arrastrar.
 - **Sprint 5:** modo alta calidad con red neuronal (Basic Pitch / CREPE).

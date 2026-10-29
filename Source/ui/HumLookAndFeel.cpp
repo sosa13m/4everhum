@@ -15,6 +15,14 @@ HumLookAndFeel::HumLookAndFeel()
     setColour (juce::TooltipWindow::backgroundColourId, theme::paperLight);
     setColour (juce::TooltipWindow::textColourId,    theme::ink);
     setColour (juce::TooltipWindow::outlineColourId, theme::ink);
+    setColour (juce::ComboBox::textColourId,         theme::ink);
+    setColour (juce::ComboBox::backgroundColourId,   theme::paperLight);
+    setColour (juce::ComboBox::outlineColourId,      theme::ink);
+    setColour (juce::ComboBox::arrowColourId,        theme::ink);
+    setColour (juce::PopupMenu::backgroundColourId,  theme::paperLight);
+    setColour (juce::PopupMenu::textColourId,        theme::ink);
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, theme::red);
+    setColour (juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
 }
 
 juce::String HumLookAndFeel::styleOf (const juce::Component& c)
@@ -236,4 +244,89 @@ void HumLookAndFeel::drawTooltip (juce::Graphics& g, const juce::String& text, i
     g.drawRect (r, 1.5f);
 
     tooltipLayout (text).draw (g, r.reduced (12.0f, 9.0f).withTrimmedLeft (2.0f));
+}
+
+// --- Menus desplegables --------------------------------------------------------
+
+void HumLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, bool isButtonDown,
+                                   int, int, int, int, juce::ComboBox& box)
+{
+    auto face = juce::Rectangle<float> (0.0f, 0.0f, (float) width, (float) height).reduced (1.0f);
+    face.removeFromRight (shadowSpace);
+    face.removeFromBottom (shadowSpace);
+
+    const bool enabled = box.isEnabled();
+    const bool hot     = box.isMouseOver (true) || box.isPopupActive();
+    const float press  = (isButtonDown && enabled) ? 2.0f : 0.0f;
+
+    if (enabled)
+        theme::drawHardShadow (g, face, { 3.0f, 3.0f }, box.isPopupActive() ? theme::red : theme::ink.withAlpha (0.4f));
+    face.translate (press, press);
+    g.setColour (! enabled ? theme::paper2 : (hot ? juce::Colours::white : theme::paperLight));
+    g.fillRect (face);
+    g.setColour (theme::ink);
+    g.drawRect (face, 2.0f);
+
+    // Flecha de tinta en su propio cuadro, separada por una linea.
+    const auto arrowBox = face.removeFromRight (26.0f);
+    g.drawVerticalLine ((int) arrowBox.getX(), arrowBox.getY() + 2.0f, arrowBox.getBottom() - 2.0f);
+    juce::Path arrow;
+    const auto c = arrowBox.getCentre();
+    arrow.addTriangle (c.x - 5.0f, c.y - 3.0f, c.x + 5.0f, c.y - 3.0f, c.x, c.y + 4.0f);
+    g.fillPath (arrow);
+}
+
+juce::Font HumLookAndFeel::getComboBoxFont (juce::ComboBox&)
+{
+    return theme::typed (15.0f);
+}
+
+void HumLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
+{
+    label.setBounds (8, 1, box.getWidth() - (int) shadowSpace - 26 - 10, box.getHeight() - (int) shadowSpace - 2);
+    label.setFont (getComboBoxFont (box));
+    label.setColour (juce::Label::textColourId, theme::ink);
+}
+
+void HumLookAndFeel::drawPopupMenuBackground (juce::Graphics& g, int width, int height)
+{
+    g.fillAll (theme::paperLight);
+    g.setColour (theme::ink);
+    g.drawRect (0, 0, width, height, 2);
+}
+
+void HumLookAndFeel::drawPopupMenuItem (juce::Graphics& g, const juce::Rectangle<int>& area, bool isSeparator,
+                                        bool isActive, bool isHighlighted, bool isTicked, bool,
+                                        const juce::String& text, const juce::String&, const juce::Drawable*,
+                                        const juce::Colour*)
+{
+    if (isSeparator)
+    {
+        g.setColour (theme::ink.withAlpha (0.3f));
+        g.fillRect (area.reduced (8, 0).withHeight (1).withCentre (area.getCentre()));
+        return;
+    }
+
+    auto r = area.reduced (3, 1);
+    if (isHighlighted && isActive)
+    {
+        g.setColour (theme::red);
+        g.fillRect (r);
+    }
+
+    // La opcion elegida lleva una marca de tinta a la izquierda.
+    if (isTicked)
+    {
+        g.setColour (isHighlighted ? juce::Colours::white : theme::red);
+        g.fillEllipse (juce::Rectangle<float> (7.0f, 7.0f).withCentre ({ (float) r.getX() + 11.0f, (float) r.getCentreY() }));
+    }
+
+    g.setColour (isHighlighted && isActive ? juce::Colours::white : (isActive ? theme::ink : theme::inkSoft));
+    g.setFont (getPopupMenuFont());
+    g.drawFittedText (text, r.withTrimmedLeft (22).withTrimmedRight (6), juce::Justification::centredLeft, 1);
+}
+
+juce::Font HumLookAndFeel::getPopupMenuFont()
+{
+    return theme::typed (15.0f);
 }

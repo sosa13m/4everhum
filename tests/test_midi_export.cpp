@@ -1,6 +1,7 @@
 // Prueba de punta a punta: voz sintetica -> notas -> .mid en disco -> se relee
 // el archivo y se verifica que las notas caen donde deben a 140 BPM.
 
+#include "dsp/Music.h"
 #include "dsp/NoteSegmenter.h"
 #include "dsp/PitchTracker.h"
 #include "midi/MidiExporter.h"
@@ -40,10 +41,15 @@ int main()
 
     const auto notes = fourever::segmentNotes (fourever::trackPitch (audio.data(), audio.size(), sr));
 
+    fourever::ClipSettings clipSettings;
+    clipSettings.bpm  = bpm;
+    clipSettings.grid = fourever::Grid::sixteenth;
+    const auto clip = fourever::makeClip (notes, clipSettings);
+
     fourever::MidiExportSettings settings;
     settings.bpm = bpm;
     const auto file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("4everhum_test.mid");
-    if (! fourever::writeMidiFile (file, notes, settings))
+    if (! fourever::writeMidiFile (file, clip.notes, settings))
     {
         std::printf ("FAIL: no se pudo escribir el .mid\n");
         return 1;
@@ -74,7 +80,7 @@ int main()
     for (std::size_t i = 0; ok && i < ons.size(); ++i)
     {
         std::printf ("  nota %d en la negra %.3f\n", ons[i].first, ons[i].second);
-        ok &= ons[i].first == expected[i] && std::abs (ons[i].second - (double) i) < 0.08;
+        ok &= ons[i].first == expected[i] && std::abs (ons[i].second - (double) i) < 1.0e-9;
     }
 
     std::printf ("%s  (ppq %d, tempo %.0f us/negra, %zu notas)\n", ok ? "OK" : "FAIL", ppq, tempoUs, ons.size());
