@@ -2,46 +2,84 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
-// Identidad visual de 4EVERHUM, tomada del tema "SOTANO 4EVER" de 4EVERTOOLS:
-// una disqueria en un sotano. Pared de concreto bajo una ampolleta, flyers
-// fotocopiados, cinta de enmascarar y el rojo de la tienda.
+#include <vector>
+
+// Temas de 4EVERHUM, tomados de los temas de 4EVERTOOLS (misma paleta,
+// tipografias y logo de cada uno). El tema activo es una preferencia global del
+// usuario: lo usan todas las ventanas del plugin.
 namespace theme
 {
-// --- Paleta (mismos valores que underground.css de 4EVERTOOLS) --------------
-inline const juce::Colour wall       { 0xff0d0b0a }; // pared
-inline const juce::Colour wallHi     { 0xff1b1714 };
-inline const juce::Colour headerBar  { 0xf20b0909 };
-inline const juce::Colour paper      { 0xffece6d8 }; // papel fotocopia
-inline const juce::Colour paper2     { 0xffddd5c3 };
-inline const juce::Colour paperLight { 0xfff6f3ec };
-inline const juce::Colour ink        { 0xff121010 }; // tinta xerox
-inline const juce::Colour inkSoft    { 0xff4a3b33 }; // texto secundario sobre papel
-inline const juce::Colour red        { 0xffd93025 }; // rojo de la tienda
-inline const juce::Colour redDark    { 0xffb3221a };
-inline const juce::Colour redButton  { 0xffc4271d };
-inline const juce::Colour tape       { 0xcce8dcae }; // cinta de enmascarar
-inline const juce::Colour bulb       { 0xfff3c27a }; // luz de la ampolleta
-inline const juce::Colour textOnWall { 0xffe3dccd };
-inline const juce::Colour dimOnWall  { 0xff9b9184 };
+enum class WallStyle { concrete, tiles, starfield, cover, stage };
+enum class CardStyle { photocopy, tileBoard, pixelWindow, sketchPage, stagePanel };
+enum class Font { anton, specialElite, spaceMono, spaceMonoBold, sedgwick, bungee, inter, pixelify, pressStart,
+                  permanentMarker, caveat, archivo, bigShoulders };
+
+struct FontRole
+{
+    Font  font  = Font::anton;
+    float scale = 1.0f; // compensa diferencias de tamano entre tipografias
+};
+
+struct Palette
+{
+    juce::String id, name;
+    juce::String logoResource; // nombre del recurso embebido
+
+    // Pared y cartel (fondo de la ventana)
+    juce::Colour wall, wallHi, headerBar, headerLine, glow, textOnWall, dimOnWall;
+    juce::Colour wallGrain;
+
+    // Hoja de trabajo (donde van el piano roll y los controles)
+    juce::Colour card1, card2, cardInk, cardInkSoft, cardGrain;
+    float        cardGrainAlpha = 0.3f;
+    juce::Colour cardBorder;      // transparente = sin borde
+
+    // Controles (botones de papel, combos, casillas, pestanas)
+    juce::Colour paper, paper2, paperLight, ink, inkSoft;
+
+    // Acento (notas, perillas, sello, boton principal)
+    juce::Colour red, redDark, redButton, redButtonHover, buttonText, onAccent, primaryShadow, meterLit, meterHot;
+    juce::Colour stampInk; // tinta del sello de tonalidad (sobre papel claro)
+
+    // Perillas
+    juce::Colour knobBody, knobIndicator;
+
+    juce::Colour tape;
+    bool useTape = true;
+
+    WallStyle wallStyle = WallStyle::concrete;
+    CardStyle cardStyle = CardStyle::photocopy;
+
+    FontRole title, display, label, mono;
+};
+
+// --- Tema activo -------------------------------------------------------------------
+const std::vector<Palette>& all();
+const Palette& c();                         // el tema activo
+void setCurrent (const juce::String& id);   // id desconocido -> SOTANO
+juce::String currentId();
+
+// Preferencia guardada (AppData/4EVERTOOLS/4EVERHUM.settings).
+juce::String loadSavedThemeId();
+void saveThemeId (const juce::String& id);
 
 // Textos de la UI escritos en UTF-8 (para tildes).
 inline juce::String ui (const char* utf8) { return juce::String::fromUTF8 (utf8); }
 
-// --- Tipografias embebidas ---------------------------------------------------
-// Anton: titulares de flyer · Special Elite: etiquetas a maquina · Space Mono: numeros/recibos
-juce::FontOptions anton (float height);
-juce::FontOptions typed (float height);
-juce::FontOptions mono (float height, bool bold = false);
+// --- Tipografias del tema activo ------------------------------------------------------
+juce::FontOptions title (float height);   // titulares grandes (HUM, marca de agua)
+juce::FontOptions display (float height); // botones principales, sellos
+juce::FontOptions label (float height);   // etiquetas y textos
+juce::FontOptions mono (float height, bool bold = false); // numeros
+
+// Compatibilidad con el codigo del tema SOTANO.
+inline juce::FontOptions anton (float h) { return display (h); }
+inline juce::FontOptions typed (float h) { return label (h); }
 
 juce::Image logo();
 
 // --- Texturas ------------------------------------------------------------------
-// Grano tipo fotocopia/concreto, generado una vez (semilla fija = siempre igual).
 juce::Image grainTile (juce::Colour grain, float density, int seed);
-
-// Rectangulo con la "cinta de enmascarar" pegada encima.
 void drawTape (juce::Graphics&, juce::Rectangle<float> area, float angleRadians);
-
-// Sombra dura desplazada (el "sticker" de 4EVERTOOLS).
 void drawHardShadow (juce::Graphics&, juce::Rectangle<float> area, juce::Point<float> offset, juce::Colour);
 } // namespace theme

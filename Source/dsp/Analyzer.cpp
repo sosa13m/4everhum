@@ -14,6 +14,7 @@ PitchTrackerSettings toPitchSettings (const UserSettings& u)
     p.silenceDb    = -30.0f - 0.35f * s;   //   0 -> -30 dB, 50 -> -47.5 dB, 100 -> -65 dB
     p.yinThreshold = 0.10f + 0.001f * s;   //   0 -> 0.10,   50 -> 0.15,     100 -> 0.20
     p.autoGate     = u.autoGate;
+    p.method       = u.highPrecision ? PitchMethod::pyin : PitchMethod::yin;
     return p;
 }
 

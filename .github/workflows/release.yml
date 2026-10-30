@@ -1,0 +1,53 @@
+name: release
+
+# Al subir un tag de version (git tag v1.0.0 && git push origin v1.0.0) se compila,
+# se corren los tests y se publica una Release de GitHub con el zip para Windows.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: juce-8.0.15-${{ runner.os }}
+
+      - name: Configurar
+        run: cmake -B build -A x64
+
+      - name: Compilar
+        run: cmake --build build --config Release --target FourEverHum_VST3 FourEverHum_Standalone hum2midi dsp_tests music_tests edit_tests bench_pitch midi_export_test
+
+      - name: Tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Armar el paquete
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $pkg = "4EVERHUM-$version-windows"
+          New-Item -ItemType Directory -Force "dist/$pkg/VST3" | Out-Null
+          Copy-Item -Recurse build/FourEverHum_artefacts/Release/VST3/4EVERHUM.vst3 "dist/$pkg/VST3/"
+          Copy-Item build/FourEverHum_artefacts/Release/Standalone/4EVERHUM.exe "dist/$pkg/"
+          Copy-Item build/hum2midi_artefacts/Release/hum2midi.exe "dist/$pkg/"
+          Copy-Item packaging/instalar.ps1, packaging/instalar.bat, packaging/desinstalar.ps1, packaging/desinstalar.bat, packaging/LEEME.txt "dist/$pkg/"
+          Copy-Item CHANGELOG.md "dist/$pkg/CAMBIOS.md"
+          Compress-Archive -Path "dist/$pkg" -DestinationPath "dist/$pkg.zip"
+          Get-ChildItem -Recurse "dist/$pkg" | Select-Object FullName, Length
+
+      - name: Publicar la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 4EVERHUM ${{ github.ref_name }}
+          body_path: CHANGELOG.md
+          files: dist/*.zip

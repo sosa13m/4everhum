@@ -51,6 +51,8 @@ private:
     juce::File writeTempMidi();
     static juce::File tempFolder();
 
+    void applyTheme (const juce::String& id); // cambia el tema y re-aplica colores y tipografias
+    void refreshThemedComponents();
     void paintWall (juce::Graphics&);
     void paintHeader (juce::Graphics&);
     void paintMeter (juce::Graphics&);
@@ -62,6 +64,7 @@ private:
     HumLookAndFeel lookAndFeel;
     juce::TooltipWindow tooltips { this, 600 };
 
+    juce::ComboBox   themeBox;
     juce::TextButton recordButton;
     juce::TextButton saveMidiButton;
     juce::TextButton saveWavButton;
@@ -75,8 +78,8 @@ private:
     std::array<juce::TextButton, 5> octaveButtons;
     std::unique_ptr<juce::ParameterAttachment> octaveAttachment;
 
-    juce::ToggleButton autoGateToggle;
-    std::unique_ptr<ButtonAttachment> autoGateAttachment;
+    juce::ToggleButton autoGateToggle, precisionToggle;
+    std::unique_ptr<ButtonAttachment> autoGateAttachment, precisionAttachment;
 
     // Texturas generadas una vez.
     juce::Image wallGrain, xeroxGrain;

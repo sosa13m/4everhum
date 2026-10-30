@@ -193,7 +193,8 @@ double Clip::lengthBeats() const
 Clip makeClip (const std::vector<NoteEvent>& notes, const ClipSettings& s)
 {
     Clip clip;
-    clip.detected = detectKey (notes);
+    clip.gridBeats = gridBeats (s.grid);
+    clip.detected  = detectKey (notes);
     if (notes.empty())
         return clip;
 

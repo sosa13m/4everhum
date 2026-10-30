@@ -8,7 +8,7 @@
 namespace
 {
 constexpr int editorWidth  = 1000;
-constexpr int editorHeight = 700;
+constexpr int editorHeight = 740;
 constexpr int headerHeight = 70;
 
 void setStyle (juce::Component& c, const char* style)
@@ -18,7 +18,7 @@ void setStyle (juce::Component& c, const char* style)
 
 void styleCaption (juce::Label& l)
 {
-    l.setColour (juce::Label::textColourId, theme::ink);
+    l.setColour (juce::Label::textColourId, theme::c().cardInk);
     l.setFont (theme::typed (15.0f));
     l.setJustificationType (juce::Justification::centred);
 }
@@ -27,10 +27,21 @@ void styleCaption (juce::Label& l)
 FourEverHumEditor::FourEverHumEditor (FourEverHumProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
 {
+    // El tema es una preferencia del usuario (la misma para todos sus proyectos).
+    theme::setCurrent (theme::loadSavedThemeId());
+    lookAndFeel.refreshColours();
     setLookAndFeel (&lookAndFeel);
 
-    wallGrain  = theme::grainTile (theme::paper, 0.35f, 11);
-    xeroxGrain = theme::grainTile (theme::ink, 0.55f, 23);
+    for (int i = 0; i < (int) theme::all().size(); ++i)
+        themeBox.addItem (theme::all()[(std::size_t) i].name, i + 1);
+    themeBox.setTooltip (theme::ui ("Tema visual, igual que los temas de 4EVERTOOLS. Se recuerda para la próxima vez."));
+    themeBox.onChange = [this]
+    {
+        const int idx = themeBox.getSelectedItemIndex();
+        if (idx >= 0)
+            applyTheme (theme::all()[(std::size_t) idx].id);
+    };
+    addAndMakeVisible (themeBox);
 
     setStyle (recordButton, "primary");
     recordButton.onClick = [this] { toggleRecording(); };
@@ -48,13 +59,15 @@ FourEverHumEditor::FourEverHumEditor (FourEverHumProcessor& p)
     saveWavButton.onClick = [this] { saveTakeAs(); };
     addAndMakeVisible (saveWavButton);
 
-    statusLabel.setColour (juce::Label::textColourId, theme::textOnWall);
+    statusLabel.setColour (juce::Label::textColourId, theme::c().textOnWall);
     statusLabel.setFont (theme::typed (15.0f));
     statusLabel.setJustificationType (juce::Justification::centredLeft);
     statusLabel.setMinimumHorizontalScale (0.9f);
     addAndMakeVisible (statusLabel);
 
     preview.createMidiFileForDrag = [this] { return writeTempMidi(); };
+    preview.onNotesEdited      = [this] (std::vector<fourever::ClipNote> edited) { processor.setEditedNotes (std::move (edited)); };
+    preview.onRestoreAutomatic = [this] { processor.clearEditedNotes(); };
     addAndMakeVisible (preview);
 
     // --- Perillas -----------------------------------------------------------
@@ -112,13 +125,24 @@ FourEverHumEditor::FourEverHumEditor (FourEverHumProcessor& p)
     addAndMakeVisible (autoGateToggle);
     autoGateAttachment = std::make_unique<ButtonAttachment> (processor.params, paramIds::autoGate, autoGateToggle);
 
+    precisionToggle.setButtonText (theme::ui ("Alta precisión"));
+    precisionToggle.setTooltip (theme::ui ("Usa pYIN: sigue la melodía en el tiempo y evita saltos de octava, "
+                                           "sobre todo con voz rasposa o grave. Desactívalo solo si una toma muy "
+                                           "larga tarda en analizarse."));
+    addAndMakeVisible (precisionToggle);
+    precisionAttachment = std::make_unique<ButtonAttachment> (processor.params, paramIds::precision, precisionToggle);
+
     // Limpia los .mid temporales de arrastres de dias anteriores.
     const auto cutoff = juce::Time::getCurrentTime() - juce::RelativeTime::days (1);
     for (const auto& f : tempFolder().findChildFiles (juce::File::findFiles, false, "*.mid"))
         if (f.getLastModificationTime() < cutoff)
             f.deleteFile();
 
+    // Redimensionable desde la esquina: al agrandar crece el piano roll.
+    setResizable (true, true);
+    setResizeLimits (editorWidth, 680, 1800, 1300);
     setSize (editorWidth, editorHeight);
+    refreshThemedComponents();
     timerCallback();
     startTimerHz (30);
 }
@@ -129,12 +153,46 @@ FourEverHumEditor::~FourEverHumEditor()
     setLookAndFeel (nullptr);
 }
 
+void FourEverHumEditor::applyTheme (const juce::String& id)
+{
+    if (id == theme::currentId())
+        return;
+    theme::setCurrent (id);
+    theme::saveThemeId (id);
+    refreshThemedComponents();
+}
+
+void FourEverHumEditor::refreshThemedComponents()
+{
+    const auto& t = theme::c();
+    wallGrain  = theme::grainTile (t.wallGrain, 0.35f, 11);
+    xeroxGrain = theme::grainTile (t.cardGrain, 0.55f, 23);
+
+    lookAndFeel.refreshColours();
+    for (auto* l : { &sensitivityKnob.label, &minNoteKnob.label, &stabilityKnob.label, &strengthKnob.label,
+                     &keyChoice.label, &scaleChoice.label, &quantizeChoice.label, &octaveLabel })
+        styleCaption (*l);
+    for (auto* k : { &sensitivityKnob, &minNoteKnob, &stabilityKnob, &strengthKnob })
+        k->slider.setColour (juce::Slider::textBoxTextColourId, t.cardInk);
+
+    statusLabel.setColour (juce::Label::textColourId, t.textOnWall);
+    statusLabel.setFont (theme::typed (15.0f));
+
+    for (int i = 0; i < (int) theme::all().size(); ++i)
+        if (theme::all()[(std::size_t) i].id == t.id)
+            themeBox.setSelectedItemIndex (i, juce::dontSendNotification);
+
+    sendLookAndFeelChange(); // los componentes vuelven a pedir sus colores y fuentes
+    resized();
+    repaint();
+}
+
 void FourEverHumEditor::setupKnob (Knob& k, const juce::String& paramId, const juce::String& title,
                                    const juce::String& tooltip)
 {
     k.slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 76, 20);
     k.slider.setTextValueSuffix (paramId == paramIds::minNote ? " ms" : " %");
-    k.slider.setColour (juce::Slider::textBoxTextColourId, theme::ink);
+    k.slider.setColour (juce::Slider::textBoxTextColourId, theme::c().cardInk);
     k.slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     k.slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
     k.slider.setTooltip (tooltip);
@@ -315,7 +373,10 @@ void FourEverHumEditor::timerCallback()
             case State::ready:
             {
                 const auto n = currentClip.notes.size();
-                if (n == 0)
+                if (currentClip.edited)
+                    status = theme::ui ("Melodía editada a mano (") + juce::String ((int) n)
+                           + theme::ui (" notas). Las perillas ya no la cambian: AUTOMÁTICO para volver.");
+                else if (n == 0)
                     status = theme::ui ("No se detectaron notas. Sube la Sensibilidad o acércate al micrófono.");
                 else if (currentClip.alignedToProject)
                     status = juce::String ((int) n) + theme::ui (" notas, alineadas desde el compás ")
@@ -356,12 +417,12 @@ void FourEverHumEditor::paintRowTab (juce::Graphics& g, juce::Rectangle<int> row
 {
     // Pestana de tinta con el titulo de la fila, como las pestanas de un flyer.
     const auto tab = row.removeFromLeft (24).toFloat().reduced (0.0f, 4.0f);
-    g.setColour (theme::ink);
+    g.setColour (theme::c().cardInk); // oscura en hojas claras, clara en hojas oscuras
     g.fillRect (tab);
 
     juce::Graphics::ScopedSaveState save (g);
     g.addTransform (juce::AffineTransform::rotation (-juce::MathConstants<float>::halfPi, tab.getCentreX(), tab.getCentreY()));
-    g.setColour (theme::paper);
+    g.setColour (theme::c().card1);
     g.setFont (theme::mono (10.0f, true));
     g.drawText (title, juce::Rectangle<float> (tab.getHeight(), tab.getWidth()).withCentre (tab.getCentre()),
                 juce::Justification::centred);
@@ -377,8 +438,8 @@ void FourEverHumEditor::paintKeyStamp (juce::Graphics& g)
     juce::Graphics::ScopedSaveState save (g);
     g.addTransform (juce::AffineTransform::rotation (-0.04f, r.getCentreX(), r.getCentreY()));
 
-    const auto ink = theme::red.withAlpha (0.92f);
-    g.setColour (theme::paperLight.withAlpha (0.85f));
+    const auto ink = theme::c().stampInk.withAlpha (0.92f);
+    g.setColour (theme::c().paperLight.withAlpha (0.85f));
     g.fillRect (r);
     g.setColour (ink);
     g.drawRect (r, 2.5f);
@@ -388,7 +449,7 @@ void FourEverHumEditor::paintKeyStamp (juce::Graphics& g)
     const bool chosen = processor.currentClipSettings().keyRoot >= 0;
 
     auto inner = r.reduced (12.0f, 6.0f);
-    g.setFont (theme::anton (20.0f));
+    g.setFont (theme::display (20.0f));
     if (known)
     {
         g.drawText (juce::String (fourever::keyNameSpanish (currentClip.key)).toUpperCase(),
@@ -399,7 +460,8 @@ void FourEverHumEditor::paintKeyStamp (juce::Graphics& g)
         const auto scaleName = plainMode ? juce::String()
                                          : "  " + FourEverHumProcessor::scaleChoices()[(int) currentClip.scaleUsed].toUpperCase();
         g.drawText (juce::String (fourever::keyName (currentClip.key)) + theme::ui (" · ") + juce::String (fourever::camelot (currentClip.key))
-                        + scaleName + (chosen ? theme::ui (" · ELEGIDA") : theme::ui (" · DETECTADA")),
+                        + scaleName + (currentClip.edited ? theme::ui (" · EDITADO A MANO")
+                                                          : chosen ? theme::ui (" · ELEGIDA") : theme::ui (" · DETECTADA")),
                     inner, juce::Justification::centredLeft);
     }
     else
@@ -414,23 +476,86 @@ void FourEverHumEditor::paintKeyStamp (juce::Graphics& g)
 
 void FourEverHumEditor::paintWall (juce::Graphics& g)
 {
+    const auto& t = theme::c();
     const auto b = getLocalBounds().toFloat();
+    const float top = (float) headerHeight;
 
-    g.setGradientFill ({ theme::wallHi, 0.0f, 0.0f, theme::wall, 0.0f, b.getHeight() * 0.7f, false });
+    g.setGradientFill ({ t.wallHi, 0.0f, 0.0f, t.wall, 0.0f, b.getHeight() * 0.7f, false });
     g.fillAll();
 
-    // Grano de concreto.
-    g.setTiledImageFill (wallGrain, 0, 0, 0.10f);
-    g.fillRect (b);
+    auto radial = [&] (juce::Colour colour, float alpha, float cx, float cy, float radius)
+    {
+        g.setGradientFill ({ colour.withAlpha (alpha), cx, cy, colour.withAlpha (0.0f), cx + radius, cy, true });
+        g.fillRect (b);
+    };
 
-    // Luz calida de la ampolleta bajo el cartel.
-    g.setGradientFill ({ theme::bulb.withAlpha (0.13f), b.getCentreX(), (float) headerHeight,
-                         theme::bulb.withAlpha (0.0f), b.getCentreX() + 380.0f, (float) headerHeight + 60.0f, true });
-    g.fillRect (b);
+    switch (t.wallStyle)
+    {
+        case theme::WallStyle::concrete:
+            // Pared de concreto con grano y la luz calida de la ampolleta.
+            g.setTiledImageFill (wallGrain, 0, 0, 0.10f);
+            g.fillRect (b);
+            radial (t.glow, 0.13f, b.getCentreX(), top, 380.0f);
+            break;
+
+        case theme::WallStyle::tiles:
+        {
+            // Azulejos del anden (en ladrillo) y el morado del spray.
+            g.setColour (t.textOnWall.withAlpha (0.045f));
+            const float tw = 46.0f, th = 22.0f;
+            for (float y = top; y < b.getBottom(); y += th)
+            {
+                g.drawHorizontalLine ((int) y, 0.0f, b.getWidth());
+                const float offset = std::fmod (y - top, 2.0f * th) < th ? 0.0f : tw * 0.5f;
+                for (float x = -offset; x < b.getWidth(); x += tw)
+                    g.drawVerticalLine ((int) x, y, y + th);
+            }
+            radial (t.glow, 0.22f, b.getWidth() * 0.12f, top + 40.0f, 420.0f);
+            radial (juce::Colour (0xffd4ff3a), 0.07f, b.getWidth() * 0.9f, b.getBottom(), 360.0f);
+            break;
+        }
+
+        case theme::WallStyle::starfield:
+        {
+            // Cielo pixelado: estrellas cuadradas y una luna morada.
+            juce::Random rng (7);
+            for (int i = 0; i < 140; ++i)
+            {
+                const float x = rng.nextFloat() * b.getWidth(), y = top + rng.nextFloat() * (b.getHeight() - top);
+                const float sz = rng.nextFloat() < 0.15f ? 3.0f : 2.0f;
+                g.setColour ((rng.nextFloat() < 0.2f ? t.red : juce::Colours::white).withAlpha (0.25f + 0.6f * rng.nextFloat()));
+                g.fillRect (std::floor (x), std::floor (y), sz, sz);
+            }
+            radial (t.glow, 0.25f, b.getWidth() * 0.86f, top + 30.0f, 260.0f);
+            break;
+        }
+
+        case theme::WallStyle::cover:
+        {
+            // Tapa de la libreta negra: grano fino y el elastico al costado.
+            g.setTiledImageFill (wallGrain, 0, 0, 0.06f);
+            g.fillRect (b);
+            const juce::Rectangle<float> band (b.getRight() - 46.0f, top, 12.0f, b.getHeight() - top);
+            g.setColour (juce::Colour (0xff1d1d1d));
+            g.fillRect (band);
+            g.setColour (juce::Colours::white.withAlpha (0.08f));
+            g.fillRect (band.withWidth (2.0f).translated (2.0f, 0.0f));
+            radial (t.glow, 0.05f, b.getCentreX(), top, 420.0f);
+            break;
+        }
+
+        case theme::WallStyle::stage:
+            // Escenario negro con dos focos: verde toxico y rosado.
+            g.setTiledImageFill (wallGrain, 0, 0, 0.05f);
+            g.fillRect (b);
+            radial (t.glow, 0.20f, b.getWidth() * 0.15f, top, 420.0f);
+            radial (t.primaryShadow, 0.16f, b.getWidth() * 0.85f, top, 420.0f);
+            break;
+    }
 
     // Vineta: las esquinas se pierden en la oscuridad.
     g.setGradientFill ({ juce::Colours::transparentBlack, b.getCentreX(), b.getCentreY(),
-                         juce::Colours::black.withAlpha (0.55f), 0.0f, 0.0f, true });
+                         juce::Colours::black.withAlpha (0.5f), 0.0f, 0.0f, true });
     g.fillRect (b);
 }
 
@@ -439,27 +564,28 @@ void FourEverHumEditor::paintHeader (juce::Graphics& g)
     const auto h = headerArea.toFloat();
 
     // Cartel de la tienda sobre la escalera: barra negra con borde rojo.
-    g.setColour (theme::headerBar);
+    g.setColour (theme::c().headerBar);
     g.fillRect (h);
     g.setGradientFill ({ juce::Colours::black.withAlpha (0.6f), 0.0f, h.getBottom() + 4.0f,
                          juce::Colours::transparentBlack, 0.0f, h.getBottom() + 18.0f, false });
     g.fillRect (h.getX(), h.getBottom() + 4.0f, h.getWidth(), 14.0f);
-    g.setColour (theme::red);
+    g.setColour (theme::c().headerLine);
     g.fillRect (h.getX(), h.getBottom(), h.getWidth(), 4.0f);
 
-    // Logo 4ever con su sombra dura.
+    // Logo del tema con su sombra dura (los logos anchos se achican para caber).
     const auto logo = theme::logo();
-    const float logoH = 50.0f;
-    const juce::Rectangle<float> logoArea (20.0f, (h.getHeight() - logoH) * 0.5f,
-                                           logoH * (float) logo.getWidth() / (float) juce::jmax (1, logo.getHeight()), logoH);
+    const float ratio = (float) logo.getWidth() / (float) juce::jmax (1, logo.getHeight());
+    const float logoW = juce::jmin (50.0f * ratio, 210.0f);
+    const float logoH = logoW / ratio;
+    const juce::Rectangle<float> logoArea (20.0f, (h.getHeight() - logoH) * 0.5f, logoW, logoH);
     g.setColour (juce::Colours::black);
     g.drawImage (logo, logoArea.translated (3.0f, 4.0f), juce::RectanglePlacement::centred, true);
     g.setOpacity (1.0f);
     g.drawImage (logo, logoArea, juce::RectanglePlacement::centred);
 
-    // "HUM" en tipografia de flyer.
-    g.setColour (theme::paper);
-    g.setFont (theme::anton (46.0f));
+    // "HUM" con la tipografia de titulares del tema.
+    g.setColour (theme::c().textOnWall);
+    g.setFont (theme::title (46.0f));
     const juce::Rectangle<float> humArea (logoArea.getRight() + 10.0f, 4.0f, 90.0f, h.getHeight() - 6.0f);
     g.drawText ("HUM", humArea, juce::Justification::centredLeft);
 
@@ -469,22 +595,28 @@ void FourEverHumEditor::paintHeader (juce::Graphics& g)
         juce::Graphics::ScopedSaveState save (g);
         g.addTransform (juce::AffineTransform::rotation (-0.04f, tag.getCentreX(), tag.getCentreY()));
         theme::drawHardShadow (g, tag, { 3.0f, 3.0f }, juce::Colours::black);
-        g.setColour (theme::paper);
+        g.setColour (theme::c().paper);
         g.fillRect (tag);
-        g.setColour (theme::ink);
+        g.setColour (theme::c().ink);
         g.setFont (theme::typed (15.0f));
         g.drawText (theme::ui ("TARAREA → MIDI"), tag, juce::Justification::centred);
     }
+
+    // Version, chiquita bajo la etiqueta.
+    g.setColour (theme::c().dimOnWall);
+    g.setFont (theme::mono (9.0f));
+    g.drawText ("v" JucePlugin_VersionString, juce::Rectangle<float> (humArea.getX() + 92.0f, h.getBottom() - 15.0f, 120.0f, 12.0f),
+                juce::Justification::left);
 
     // Insignia del tempo del proyecto.
     {
         const auto badge = bpmBadgeArea.toFloat();
         theme::drawHardShadow (g, badge, { 2.0f, 2.0f }, juce::Colours::black);
-        g.setColour (theme::paper);
+        g.setColour (theme::c().paper);
         g.fillRect (badge);
-        g.setColour (theme::red);
+        g.setColour (theme::c().red);
         g.fillEllipse (juce::Rectangle<float> (8.0f, 8.0f).withCentre ({ badge.getX() + 14.0f, badge.getCentreY() }));
-        g.setColour (theme::ink);
+        g.setColour (theme::c().ink);
         g.setFont (theme::typed (14.0f));
         g.drawText ("TEMPO " + juce::String (processor.getHostBpm(), 1) + " BPM",
                     badge.withTrimmedLeft (24.0f).withTrimmedRight (8.0f), juce::Justification::centred);
@@ -495,7 +627,7 @@ void FourEverHumEditor::paintMeter (juce::Graphics& g)
 {
     // Medidor tipo "barra de carga" de 4EVERTOOLS: bloques de 6 px con 2 px de aire.
     const auto m = meterArea.toFloat();
-    g.setColour (theme::dimOnWall);
+    g.setColour (theme::c().dimOnWall);
     g.setFont (theme::mono (10.0f, true));
     g.drawText ("MIC", m.withY (m.getY() - 15.0f).withHeight (12.0f), juce::Justification::left);
 
@@ -509,40 +641,98 @@ void FourEverHumEditor::paintMeter (juce::Graphics& g)
         const auto r = juce::Rectangle<float> (m.getX() + (float) i * 8.0f, m.getY(), 6.0f, m.getHeight());
         const bool lit = pos <= frac;
         const bool hot = pos > 0.9f; // ultimos bloques: cerca de saturar
-        g.setColour (lit ? (hot ? theme::red : theme::paper) : juce::Colours::white.withAlpha (0.08f));
+        g.setColour (lit ? (hot ? theme::c().meterHot : theme::c().meterLit) : theme::c().textOnWall.withAlpha (0.08f));
         g.fillRect (r);
     }
 }
 
 void FourEverHumEditor::paintCard (juce::Graphics& g)
 {
+    const auto& t = theme::c();
     const auto c = cardArea.toFloat();
 
-    // Hoja fotocopiada pegada en la pared, con su sombra.
+    // La hoja de trabajo con su sombra (o su brillo, en el escenario).
+    if (t.cardStyle == theme::CardStyle::stagePanel)
+        juce::DropShadow (t.cardBorder.withAlpha (0.35f), 28, { 0, 0 }).drawForRectangle (g, cardArea);
     juce::DropShadow (juce::Colours::black.withAlpha (0.8f), 36, { 0, 18 }).drawForRectangle (g, cardArea);
-    g.setGradientFill ({ juce::Colour (0xffefe9dc), c.getX(), c.getY(),
-                         juce::Colour (0xffe0d8c6), c.getX() + c.getWidth() * 0.2f, c.getBottom(), false });
-    g.fillRect (c);
-    g.setTiledImageFill (xeroxGrain, 0, 0, 0.30f);
-    g.fillRect (c);
 
-    // Pliegue diagonal de la fotocopia.
-    g.setColour (theme::ink.withAlpha (0.045f));
-    g.drawLine (c.getX() + c.getWidth() * 0.62f, c.getY(), c.getX() + c.getWidth() * 0.48f, c.getBottom(), 3.0f);
+    if (t.cardStyle == theme::CardStyle::pixelWindow)
+        g.setColour (t.card1);
+    else
+        g.setGradientFill ({ t.card1, c.getX(), c.getY(), t.card2, c.getX() + c.getWidth() * 0.2f, c.getBottom(), false });
+    g.fillRect (c);
+    if (t.cardGrainAlpha > 0.0f)
+    {
+        g.setTiledImageFill (xeroxGrain, 0, 0, t.cardGrainAlpha);
+        g.fillRect (c);
+    }
+
+    switch (t.cardStyle)
+    {
+        case theme::CardStyle::photocopy:
+            // Pliegue diagonal de la fotocopia.
+            g.setColour (t.cardInk.withAlpha (0.045f));
+            g.drawLine (c.getX() + c.getWidth() * 0.62f, c.getY(), c.getX() + c.getWidth() * 0.48f, c.getBottom(), 3.0f);
+            break;
+
+        case theme::CardStyle::tileBoard:
+        {
+            // Letrero del metro: azulejos finos, borde morado y la franja de la linea.
+            g.setColour (t.cardInk.withAlpha (0.035f));
+            for (float y = c.getY() + 24.0f; y < c.getBottom(); y += 24.0f)
+                g.drawHorizontalLine ((int) y, c.getX(), c.getRight());
+            for (float x = c.getX() + 48.0f; x < c.getRight(); x += 48.0f)
+                g.drawVerticalLine ((int) x, c.getY(), c.getBottom());
+            g.setColour (juce::Colour (0xffd4ff3a));
+            g.fillRect (c.getX(), c.getY(), c.getWidth(), 5.0f);
+            g.setColour (t.cardBorder);
+            g.drawRect (c, 3.0f);
+            break;
+        }
+
+        case theme::CardStyle::pixelWindow:
+        {
+            // Ventana de RPG: doble borde pixelado y esquinas escalonadas.
+            g.setColour (t.cardBorder);
+            g.drawRect (c, 4.0f);
+            g.setColour (t.cardInkSoft);
+            g.drawRect (c.reduced (7.0f), 2.0f);
+            g.setColour (t.wall);
+            for (const auto& corner : { c.getTopLeft(), c.getTopRight().translated (-4.0f, 0.0f),
+                                        c.getBottomLeft().translated (0.0f, -4.0f), c.getBottomRight().translated (-4.0f, -4.0f) })
+                g.fillRect (corner.x, corner.y, 4.0f, 4.0f);
+            break;
+        }
+
+        case theme::CardStyle::sketchPage:
+        {
+            // Pagina de libreta: los agujeros del espiral a la izquierda.
+            g.setColour (t.wall);
+            for (float y = c.getY() + 26.0f; y < c.getBottom() - 16.0f; y += 30.0f)
+                g.fillEllipse (c.getX() + 8.0f, y, 9.0f, 9.0f);
+            break;
+        }
+
+        case theme::CardStyle::stagePanel:
+            g.setColour (t.cardBorder);
+            g.drawRect (c, 2.0f);
+            break;
+    }
 
     // Marca de agua gigante, como en las tool-cards de 4EVERTOOLS.
     {
         juce::Graphics::ScopedSaveState save (g);
         g.reduceClipRegion (cardArea);
         g.addTransform (juce::AffineTransform::rotation (0.14f, c.getRight() - 200.0f, c.getY() + 70.0f));
-        g.setColour (theme::ink.withAlpha (0.035f));
-        g.setFont (theme::anton (124.0f));
+        g.setColour (t.cardInk.withAlpha (0.035f));
+        g.setFont (theme::title (124.0f));
         g.drawText ("4EVERHUM", juce::Rectangle<float> (c.getRight() - 520.0f, c.getY() + 4.0f, 560.0f, 140.0f),
                     juce::Justification::centredRight);
     }
 
     // Cinta que sostiene la hoja.
-    theme::drawTape (g, juce::Rectangle<float> (120.0f, 26.0f).withCentre ({ c.getCentreX(), c.getY() + 1.0f }), -0.035f);
+    if (t.useTape)
+        theme::drawTape (g, juce::Rectangle<float> (120.0f, 26.0f).withCentre ({ c.getCentreX(), c.getY() + 1.0f }), -0.035f);
 
     // Linea de corte punteada entre el piano roll y los controles, con su tijera.
     const float y = (float) controlsArea.getY() - 13.0f;
@@ -557,11 +747,11 @@ void FourEverHumEditor::paintCard (juce::Graphics& g)
     {
         juce::Graphics::ScopedSaveState save (g);
         g.excludeClipRegion (tag.toNearestInt());
-        g.setColour (theme::ink.withAlpha (0.45f));
+        g.setColour (t.cardInk.withAlpha (0.45f));
         g.fillPath (dashed);
     }
 
-    g.setColour (theme::inkSoft);
+    g.setColour (t.cardInkSoft);
     g.setFont (theme::mono (10.0f, true));
     g.drawText (theme::ui ("✂ AJUSTES"), tag, juce::Justification::centred);
 }
@@ -572,6 +762,7 @@ void FourEverHumEditor::resized()
 
     headerArea   = area.removeFromTop (headerHeight);
     bpmBadgeArea = juce::Rectangle<int> (headerArea.getRight() - 196, 21, 174, 28);
+    themeBox.setBounds (bpmBadgeArea.getX() - 214, 16, 196, 40);
 
     // Fila de grabacion sobre la pared.
     auto row = juce::Rectangle<int> (22, headerHeight + 22, getWidth() - 44, 56);
@@ -628,7 +819,10 @@ void FourEverHumEditor::resized()
         ctl.removeFromLeft (6);
     }
     ctl.removeFromLeft (20);
-    autoGateToggle.setBounds (ctl.removeFromLeft (180).withSizeKeepingCentre (180, 28).translated (0, 6));
+    auto toggles = ctl.removeFromLeft (190).withSizeKeepingCentre (190, 68).translated (0, 6);
+    autoGateToggle.setBounds (toggles.removeFromTop (28));
+    toggles.removeFromTop (12);
+    precisionToggle.setBounds (toggles.removeFromTop (28));
 
     // Fila 2: MUSICA
     ctl = musicRow.withTrimmedLeft (34);

@@ -17,6 +17,7 @@ public:
     static inline const juce::Identifier styleKey { "humStyle" };
 
     HumLookAndFeel();
+    void refreshColours(); // re-aplica los colores del tema activo
 
     void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&,
                                bool isMouseOver, bool isButtonDown) override;

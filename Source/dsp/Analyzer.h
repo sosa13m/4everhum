@@ -17,6 +17,7 @@ struct UserSettings
     float minNoteMs   = 70.0f; // 30..300: notas mas cortas se descartan
     float stability   = 50.0f; // 0..100: mas alto = ignora mas el vibrato y las desafinaciones
     bool  autoGate    = true;  // ajustar el umbral al ruido de fondo de la toma
+    bool  highPrecision = true;  // pYIN (por defecto) o YIN clasico si es false
 };
 
 PitchTrackerSettings toPitchSettings (const UserSettings&);

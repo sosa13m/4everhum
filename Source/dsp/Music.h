@@ -94,6 +94,8 @@ struct Clip
     Scale       scaleUsed  = Scale::none;
     bool        alignedToProject = false; // notas en su posicion real dentro del compas
     double      originBeat = 0.0;  // en que negra del proyecto empieza el clip
+    double      gridBeats  = 0.0;  // celda del grid usado (0 = apagado); la usa el editor
+    bool        edited     = false; // true si las notas fueron editadas a mano
     double      lengthBeats() const;
 };
 

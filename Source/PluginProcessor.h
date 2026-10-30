@@ -16,6 +16,7 @@ inline constexpr auto minNote     = "minNote";
 inline constexpr auto stability   = "stability";
 inline constexpr auto octave      = "octave";
 inline constexpr auto autoGate    = "autoGate";
+inline constexpr auto precision   = "highPrecision";
 inline constexpr auto keyRoot     = "keyRoot";
 inline constexpr auto scale       = "scale";
 inline constexpr auto quantize    = "quantize";
@@ -90,6 +91,12 @@ public:
     // grid y octava aplicados.
     fourever::Clip getClip() const;
 
+    // Edicion manual (Sprint 4): mientras haya notas editadas, el clip usa esas
+    // notas tal cual y las perillas ya no lo recalculan. Una toma nueva las reemplaza.
+    void setEditedNotes (std::vector<fourever::ClipNote> notes);
+    void clearEditedNotes();
+    bool hasEditedNotes() const;
+
     // Ultima toma (nullptr si no hay: p. ej. tras reabrir el proyecto).
     std::shared_ptr<const Take> getLastTake() const;
 
@@ -127,6 +134,7 @@ private:
     std::atomic<float>* stabilityParam   = nullptr;
     std::atomic<float>* octaveParam      = nullptr;
     std::atomic<float>* autoGateParam    = nullptr;
+    std::atomic<float>* precisionParam   = nullptr;
     std::atomic<float>* keyRootParam     = nullptr;
     std::atomic<float>* scaleParam       = nullptr;
     std::atomic<float>* quantizeParam    = nullptr;
@@ -147,6 +155,8 @@ private:
                                                                  .withNumberOfThreads (1) };
     mutable juce::CriticalSection resultLock;
     std::vector<fourever::NoteEvent> notes;   // sin transponer
+    std::vector<fourever::ClipNote>  editedNotes;
+    bool                             edited = false;
     std::shared_ptr<const Take>      lastTake;
     std::atomic<int>     resultVersion { 0 };
     std::atomic<double>  resultBpm { 120.0 };

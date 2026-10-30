@@ -1,0 +1,4 @@
+# Los .bat necesitan finales de linea de Windows.
+*.bat text eol=crlf
+*.ttf binary
+*.png binary

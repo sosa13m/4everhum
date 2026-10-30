@@ -8,7 +8,7 @@ constexpr int octaveZeroIndex = 2;
 
 // Parametros que cambian el analisis (requieren re-analizar la toma)...
 const juce::StringArray analysisIds { paramIds::sensitivity, paramIds::minNote,
-                                      paramIds::stability, paramIds::autoGate };
+                                      paramIds::stability, paramIds::autoGate, paramIds::precision };
 // ...y los que solo cambian el clip final (instantaneos).
 const juce::StringArray clipIds { paramIds::octave, paramIds::keyRoot, paramIds::scale,
                                   paramIds::quantize, paramIds::strength };
@@ -63,6 +63,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout FourEverHumProcessor::create
     layout.add (std::make_unique<AudioParameterBool> (
         ParameterID { paramIds::autoGate, 1 }, "Filtro de ruido", true));
 
+    layout.add (std::make_unique<AudioParameterBool> (
+        ParameterID { paramIds::precision, 1 }, String::fromUTF8 ("Alta precisión"), true));
+
     layout.add (std::make_unique<AudioParameterChoice> (
         ParameterID { paramIds::keyRoot, 1 }, "Tonalidad", keyChoices(), 0));
 
@@ -91,6 +94,7 @@ FourEverHumProcessor::FourEverHumProcessor()
     stabilityParam   = params.getRawParameterValue (paramIds::stability);
     octaveParam      = params.getRawParameterValue (paramIds::octave);
     autoGateParam    = params.getRawParameterValue (paramIds::autoGate);
+    precisionParam   = params.getRawParameterValue (paramIds::precision);
     keyRootParam     = params.getRawParameterValue (paramIds::keyRoot);
     scaleParam       = params.getRawParameterValue (paramIds::scale);
     quantizeParam    = params.getRawParameterValue (paramIds::quantize);
@@ -204,6 +208,7 @@ fourever::UserSettings FourEverHumProcessor::currentSettings() const
     u.minNoteMs   = minNoteParam->load();
     u.stability   = stabilityParam->load();
     u.autoGate    = autoGateParam->load() > 0.5f;
+    u.highPrecision = precisionParam->load() > 0.5f;
     return u;
 }
 
@@ -244,6 +249,8 @@ void FourEverHumProcessor::stopRecording()
     {
         const juce::ScopedLock sl (resultLock);
         lastTake = take;
+        editedNotes.clear(); // toma nueva: la edicion manual anterior ya no aplica
+        edited = false;
     }
     launchAnalysis (take);
 }
@@ -323,11 +330,48 @@ fourever::ClipSettings FourEverHumProcessor::currentClipSettings() const
 fourever::Clip FourEverHumProcessor::getClip() const
 {
     std::vector<fourever::NoteEvent> copy;
+    std::vector<fourever::ClipNote> manual;
+    bool isEdited = false;
     {
         const juce::ScopedLock sl (resultLock);
-        copy = notes;
+        copy     = notes;
+        manual   = editedNotes;
+        isEdited = edited;
     }
-    return fourever::makeClip (copy, currentClipSettings());
+
+    auto clip = fourever::makeClip (copy, currentClipSettings());
+    if (isEdited)
+    {
+        clip.notes  = std::move (manual);
+        clip.edited = true;
+    }
+    return clip;
+}
+
+void FourEverHumProcessor::setEditedNotes (std::vector<fourever::ClipNote> newNotes)
+{
+    {
+        const juce::ScopedLock sl (resultLock);
+        editedNotes = std::move (newNotes);
+        edited      = true;
+    }
+    ++resultVersion;
+}
+
+void FourEverHumProcessor::clearEditedNotes()
+{
+    {
+        const juce::ScopedLock sl (resultLock);
+        editedNotes.clear();
+        edited = false;
+    }
+    ++resultVersion;
+}
+
+bool FourEverHumProcessor::hasEditedNotes() const
+{
+    const juce::ScopedLock sl (resultLock);
+    return edited;
 }
 
 std::shared_ptr<const FourEverHumProcessor::Take> FourEverHumProcessor::getLastTake() const
@@ -348,9 +392,28 @@ void FourEverHumProcessor::getStateInformation (juce::MemoryBlock& destData)
     tree.appendChild (params.copyState(), nullptr);
 
     std::vector<fourever::NoteEvent> raw;
+    std::vector<fourever::ClipNote> manual;
+    bool isEdited = false;
     {
         const juce::ScopedLock sl (resultLock);
-        raw = notes;
+        raw      = notes;
+        manual   = editedNotes;
+        isEdited = edited;
+    }
+
+    if (isEdited)
+    {
+        juce::ValueTree ed ("EDITED");
+        for (const auto& n : manual)
+        {
+            juce::ValueTree c ("CNOTE");
+            c.setProperty ("start", n.startBeat, nullptr);
+            c.setProperty ("len",   n.lengthBeat, nullptr);
+            c.setProperty ("pitch", n.midiNote, nullptr);
+            c.setProperty ("vel",   n.velocity, nullptr);
+            ed.appendChild (c, nullptr);
+        }
+        tree.appendChild (ed, nullptr);
     }
 
     for (const auto& n : raw)
@@ -396,10 +459,24 @@ void FourEverHumProcessor::setStateInformation (const void* data, int sizeInByte
         loaded.push_back (n);
     }
 
+    std::vector<fourever::ClipNote> manual;
+    const auto ed = tree.getChildWithName ("EDITED");
+    for (const auto& c : ed)
+    {
+        fourever::ClipNote n;
+        n.startBeat  = c.getProperty ("start");
+        n.lengthBeat = c.getProperty ("len");
+        n.midiNote   = c.getProperty ("pitch");
+        n.velocity   = (float) (double) c.getProperty ("vel", 0.8);
+        manual.push_back (n);
+    }
+
     {
         const juce::ScopedLock sl (resultLock);
-        notes    = std::move (loaded);
-        lastTake = nullptr;
+        notes       = std::move (loaded);
+        editedNotes = std::move (manual);
+        edited      = ed.isValid();
+        lastTake    = nullptr;
     }
     ++resultVersion;
 

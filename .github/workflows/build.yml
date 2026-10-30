@@ -21,7 +21,7 @@ jobs:
         run: cmake -B build -A x64
 
       - name: Compilar
-        run: cmake --build build --config Release --target FourEverHum_VST3 FourEverHum_Standalone hum2midi dsp_tests music_tests midi_export_test
+        run: cmake --build build --config Release --target FourEverHum_VST3 FourEverHum_Standalone hum2midi dsp_tests music_tests edit_tests bench_pitch midi_export_test
 
       - name: Tests
         run: ctest --test-dir build -C Release --output-on-failure

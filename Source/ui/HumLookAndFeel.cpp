@@ -2,27 +2,33 @@
 
 HumLookAndFeel::HumLookAndFeel()
 {
-    setColour (juce::Slider::textBoxTextColourId,    theme::ink);
+    refreshColours();
+}
+
+void HumLookAndFeel::refreshColours()
+{
+    // Se llama otra vez al cambiar de tema.
+    setColour (juce::Slider::textBoxTextColourId,    theme::c().cardInk);
     setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
-    setColour (juce::Slider::textBoxHighlightColourId, theme::red.withAlpha (0.35f));
-    setColour (juce::TextEditor::textColourId,       theme::ink);
-    setColour (juce::TextEditor::backgroundColourId, theme::paperLight);
-    setColour (juce::TextEditor::highlightColourId,  theme::red.withAlpha (0.35f));
-    setColour (juce::CaretComponent::caretColourId,  theme::red);
-    setColour (juce::Label::textColourId,            theme::ink);
-    setColour (juce::ToggleButton::textColourId,     theme::ink);
-    setColour (juce::TooltipWindow::backgroundColourId, theme::paperLight);
-    setColour (juce::TooltipWindow::textColourId,    theme::ink);
-    setColour (juce::TooltipWindow::outlineColourId, theme::ink);
-    setColour (juce::ComboBox::textColourId,         theme::ink);
-    setColour (juce::ComboBox::backgroundColourId,   theme::paperLight);
-    setColour (juce::ComboBox::outlineColourId,      theme::ink);
-    setColour (juce::ComboBox::arrowColourId,        theme::ink);
-    setColour (juce::PopupMenu::backgroundColourId,  theme::paperLight);
-    setColour (juce::PopupMenu::textColourId,        theme::ink);
-    setColour (juce::PopupMenu::highlightedBackgroundColourId, theme::red);
-    setColour (juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
+    setColour (juce::Slider::textBoxHighlightColourId, theme::c().red.withAlpha (0.35f));
+    setColour (juce::TextEditor::textColourId,       theme::c().ink);
+    setColour (juce::TextEditor::backgroundColourId, theme::c().paperLight);
+    setColour (juce::TextEditor::highlightColourId,  theme::c().red.withAlpha (0.35f));
+    setColour (juce::CaretComponent::caretColourId,  theme::c().red);
+    setColour (juce::Label::textColourId,            theme::c().cardInk);
+    setColour (juce::ToggleButton::textColourId,     theme::c().cardInk);
+    setColour (juce::TooltipWindow::backgroundColourId, theme::c().paperLight);
+    setColour (juce::TooltipWindow::textColourId,    theme::c().ink);
+    setColour (juce::TooltipWindow::outlineColourId, theme::c().ink);
+    setColour (juce::ComboBox::textColourId,         theme::c().ink);
+    setColour (juce::ComboBox::backgroundColourId,   theme::c().paperLight);
+    setColour (juce::ComboBox::outlineColourId,      theme::c().ink);
+    setColour (juce::ComboBox::arrowColourId,        theme::c().ink);
+    setColour (juce::PopupMenu::backgroundColourId,  theme::c().paperLight);
+    setColour (juce::PopupMenu::textColourId,        theme::c().ink);
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, theme::c().red);
+    setColour (juce::PopupMenu::highlightedTextColourId, theme::c().onAccent);
 }
 
 juce::String HumLookAndFeel::styleOf (const juce::Component& c)
@@ -49,21 +55,21 @@ void HumLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& butt
 
     if (style == "primary")
     {
-        fill   = ! enabled ? juce::Colour (0xff4b2b27)
-               : isMouseOver ? juce::Colour (0xffa81f17) : theme::redButton;
-        shadow = juce::Colours::black;
+        fill   = ! enabled ? theme::c().redButton.withMultipliedSaturation (0.35f).withMultipliedBrightness (0.45f)
+               : isMouseOver ? theme::c().redButtonHover : theme::c().redButton;
+        shadow = theme::c().primaryShadow;
         shadowOffset = enabled ? 4.0f : 0.0f;
     }
     else if (style == "segment" && on)
     {
-        fill   = theme::ink;
-        shadow = theme::red;
+        fill   = theme::c().ink;
+        shadow = theme::c().red;
         shadowOffset = 2.5f;
     }
     else // "paper" o "segment" sin activar
     {
-        fill   = ! enabled ? theme::paper2 : (isMouseOver ? juce::Colours::white : theme::paperLight);
-        shadow = theme::ink.withAlpha (0.4f);
+        fill   = ! enabled ? theme::c().paper2 : (isMouseOver ? juce::Colours::white : theme::c().paperLight);
+        shadow = theme::c().ink.withAlpha (0.4f);
         shadowOffset = enabled ? (style == "segment" ? 2.0f : 3.0f) : 0.0f;
     }
 
@@ -73,7 +79,7 @@ void HumLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& butt
     face.translate (juce::jmin (press, shadowOffset), juce::jmin (press, shadowOffset));
     g.setColour (fill);
     g.fillRect (face);
-    g.setColour (enabled ? theme::ink : theme::ink.withAlpha (0.35f));
+    g.setColour (enabled ? theme::c().ink : theme::c().ink.withAlpha (0.35f));
     g.drawRect (face, 2.0f);
 }
 
@@ -93,17 +99,17 @@ void HumLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& button
     if (style == "primary")
     {
         g.setFont (theme::anton (juce::jmin (22.0f, area.getHeight() * 0.5f)));
-        colour = enabled ? juce::Colours::white : juce::Colour (0xfff3e7e4).withAlpha (0.6f);
+        colour = enabled ? theme::c().buttonText : theme::c().buttonText.withAlpha (0.55f);
     }
     else if (style == "segment")
     {
         g.setFont (theme::mono (14.0f, true));
-        colour = on ? theme::paper : theme::ink;
+        colour = on ? theme::c().paper : theme::c().ink;
     }
     else
     {
         g.setFont (theme::typed (15.0f));
-        colour = enabled ? theme::ink : theme::ink.withAlpha (0.4f);
+        colour = enabled ? theme::c().ink : theme::c().ink.withAlpha (0.4f);
     }
 
     g.setColour (colour);
@@ -121,7 +127,7 @@ void HumLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, i
     const bool hot     = slider.isMouseOverOrDragging();
 
     // Marcas alrededor, como en un aparato de los 80.
-    g.setColour (theme::ink.withAlpha (0.55f));
+    g.setColour (theme::c().cardInk.withAlpha (0.55f));
     for (int i = 0; i <= 10; ++i)
     {
         const float a = startAngle + (float) i / 10.0f * (endAngle - startAngle);
@@ -136,26 +142,31 @@ void HumLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, i
     const float stroke = 4.0f;
     juce::Path track;
     track.addCentredArc (centre.x, centre.y, arcR, arcR, 0.0f, startAngle, endAngle, true);
-    g.setColour (theme::ink.withAlpha (0.12f));
+    g.setColour (theme::c().cardInk.withAlpha (0.14f));
     g.strokePath (track, juce::PathStrokeType (stroke, juce::PathStrokeType::curved, juce::PathStrokeType::butt));
     if (pos > 0.0f)
     {
         juce::Path value;
         value.addCentredArc (centre.x, centre.y, arcR, arcR, 0.0f, startAngle, angle, true);
-        g.setColour (slider.isEnabled() ? theme::red : theme::inkSoft);
+        g.setColour (slider.isEnabled() ? theme::c().red : theme::c().cardInkSoft);
         g.strokePath (value, juce::PathStrokeType (stroke, juce::PathStrokeType::curved, juce::PathStrokeType::butt));
     }
 
     // Cuerpo de tinta con sombra dura.
     const float bodyR = arcR - 6.0f;
     const auto body = juce::Rectangle<float> (bodyR * 2.0f, bodyR * 2.0f).withCentre (centre);
-    g.setColour (hot ? theme::red : theme::ink.withAlpha (0.35f));
+    g.setColour (hot ? theme::c().red : theme::c().ink.withAlpha (0.35f));
     g.fillEllipse (body.translated (2.5f, 2.5f));
-    g.setColour (theme::ink);
+    g.setColour (theme::c().knobBody);
     g.fillEllipse (body);
+    if (theme::c().cardBorder.getAlpha() > 0) // en hojas oscuras, un aro para que la perilla se recorte
+    {
+        g.setColour (theme::c().cardInk.withAlpha (0.35f));
+        g.drawEllipse (body, 1.2f);
+    }
 
-    // Indicador de papel.
-    g.setColour (theme::paper);
+    // Indicador.
+    g.setColour (theme::c().knobIndicator);
     g.drawLine ({ centre.getPointOnCircumference (bodyR * 0.2f, angle),
                   centre.getPointOnCircumference (bodyR * 0.82f, angle) }, 3.0f);
 }
@@ -164,11 +175,11 @@ juce::Label* HumLookAndFeel::createSliderTextBox (juce::Slider& slider)
 {
     auto* l = LookAndFeel_V4::createSliderTextBox (slider);
     l->setFont (theme::mono (13.0f, true));
-    l->setColour (juce::Label::textColourId, theme::ink);
+    l->setColour (juce::Label::textColourId, theme::c().cardInk);
     l->setColour (juce::Label::outlineColourId, juce::Colours::transparentBlack);
     l->setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
-    l->setColour (juce::Label::outlineWhenEditingColourId, theme::red);
-    l->setColour (juce::Label::backgroundWhenEditingColourId, theme::paperLight);
+    l->setColour (juce::Label::outlineWhenEditingColourId, theme::c().red);
+    l->setColour (juce::Label::backgroundWhenEditingColourId, theme::c().paperLight);
     return l;
 }
 
@@ -186,10 +197,10 @@ void HumLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& bu
     auto area = button.getLocalBounds().toFloat();
     const auto box = area.removeFromLeft (boxSize + 2.0f).withSizeKeepingCentre (boxSize, boxSize);
 
-    theme::drawHardShadow (g, box, { 2.0f, 2.0f }, theme::ink.withAlpha (0.35f));
-    g.setColour (isMouseOver ? juce::Colours::white : theme::paperLight);
+    theme::drawHardShadow (g, box, { 2.0f, 2.0f }, theme::c().ink.withAlpha (0.35f));
+    g.setColour (isMouseOver ? juce::Colours::white : theme::c().paperLight);
     g.fillRect (box);
-    g.setColour (theme::ink);
+    g.setColour (theme::c().ink);
     g.drawRect (box, 2.0f);
 
     if (button.getToggleState())
@@ -199,12 +210,12 @@ void HumLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& bu
         tick.startNewSubPath (box.getX() + 4.0f, box.getCentreY() + 1.0f);
         tick.lineTo (box.getX() + 8.5f, box.getBottom() - 4.0f);
         tick.lineTo (box.getRight() + 2.0f, box.getY() - 3.0f);
-        g.setColour (theme::red);
+        g.setColour (theme::c().red);
         g.strokePath (tick, juce::PathStrokeType (3.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     area.removeFromLeft (8.0f);
-    g.setColour (button.isEnabled() ? theme::ink : theme::inkSoft);
+    g.setColour (button.isEnabled() ? theme::c().cardInk : theme::c().cardInkSoft);
     g.setFont (theme::typed (15.0f));
     g.drawFittedText (button.getButtonText(), area.toNearestInt(), juce::Justification::centredLeft, 2, 0.9f);
 }
@@ -213,7 +224,7 @@ juce::TextLayout HumLookAndFeel::tooltipLayout (const juce::String& text)
 {
     juce::AttributedString s;
     s.setJustification (juce::Justification::topLeft);
-    s.append (text, theme::typed (14.0f), theme::ink);
+    s.append (text, theme::typed (14.0f), theme::c().ink);
 
     juce::TextLayout layout;
     layout.createLayoutWithBalancedLineLengths (s, 300.0f);
@@ -236,11 +247,11 @@ juce::Rectangle<int> HumLookAndFeel::getTooltipBounds (const juce::String& text,
 void HumLookAndFeel::drawTooltip (juce::Graphics& g, const juce::String& text, int width, int height)
 {
     const auto r = juce::Rectangle<float> (0.0f, 0.0f, (float) width, (float) height);
-    g.setColour (theme::paperLight);
+    g.setColour (theme::c().paperLight);
     g.fillRect (r);
-    g.setColour (theme::red);
+    g.setColour (theme::c().red);
     g.fillRect (r.withWidth (4.0f));
-    g.setColour (theme::ink);
+    g.setColour (theme::c().ink);
     g.drawRect (r, 1.5f);
 
     tooltipLayout (text).draw (g, r.reduced (12.0f, 9.0f).withTrimmedLeft (2.0f));
@@ -260,11 +271,11 @@ void HumLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, boo
     const float press  = (isButtonDown && enabled) ? 2.0f : 0.0f;
 
     if (enabled)
-        theme::drawHardShadow (g, face, { 3.0f, 3.0f }, box.isPopupActive() ? theme::red : theme::ink.withAlpha (0.4f));
+        theme::drawHardShadow (g, face, { 3.0f, 3.0f }, box.isPopupActive() ? theme::c().red : theme::c().ink.withAlpha (0.4f));
     face.translate (press, press);
-    g.setColour (! enabled ? theme::paper2 : (hot ? juce::Colours::white : theme::paperLight));
+    g.setColour (! enabled ? theme::c().paper2 : (hot ? juce::Colours::white : theme::c().paperLight));
     g.fillRect (face);
-    g.setColour (theme::ink);
+    g.setColour (theme::c().ink);
     g.drawRect (face, 2.0f);
 
     // Flecha de tinta en su propio cuadro, separada por una linea.
@@ -285,13 +296,13 @@ void HumLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& lab
 {
     label.setBounds (8, 1, box.getWidth() - (int) shadowSpace - 26 - 10, box.getHeight() - (int) shadowSpace - 2);
     label.setFont (getComboBoxFont (box));
-    label.setColour (juce::Label::textColourId, theme::ink);
+    label.setColour (juce::Label::textColourId, theme::c().ink);
 }
 
 void HumLookAndFeel::drawPopupMenuBackground (juce::Graphics& g, int width, int height)
 {
-    g.fillAll (theme::paperLight);
-    g.setColour (theme::ink);
+    g.fillAll (theme::c().paperLight);
+    g.setColour (theme::c().ink);
     g.drawRect (0, 0, width, height, 2);
 }
 
@@ -302,7 +313,7 @@ void HumLookAndFeel::drawPopupMenuItem (juce::Graphics& g, const juce::Rectangle
 {
     if (isSeparator)
     {
-        g.setColour (theme::ink.withAlpha (0.3f));
+        g.setColour (theme::c().ink.withAlpha (0.3f));
         g.fillRect (area.reduced (8, 0).withHeight (1).withCentre (area.getCentre()));
         return;
     }
@@ -310,18 +321,18 @@ void HumLookAndFeel::drawPopupMenuItem (juce::Graphics& g, const juce::Rectangle
     auto r = area.reduced (3, 1);
     if (isHighlighted && isActive)
     {
-        g.setColour (theme::red);
+        g.setColour (theme::c().red);
         g.fillRect (r);
     }
 
     // La opcion elegida lleva una marca de tinta a la izquierda.
     if (isTicked)
     {
-        g.setColour (isHighlighted ? juce::Colours::white : theme::red);
+        g.setColour (isHighlighted ? theme::c().onAccent : theme::c().red);
         g.fillEllipse (juce::Rectangle<float> (7.0f, 7.0f).withCentre ({ (float) r.getX() + 11.0f, (float) r.getCentreY() }));
     }
 
-    g.setColour (isHighlighted && isActive ? juce::Colours::white : (isActive ? theme::ink : theme::inkSoft));
+    g.setColour (isHighlighted && isActive ? theme::c().onAccent : (isActive ? theme::c().ink : theme::c().inkSoft));
     g.setFont (getPopupMenuFont());
     g.drawFittedText (text, r.withTrimmedLeft (22).withTrimmedRight (6), juce::Justification::centredLeft, 1);
 }

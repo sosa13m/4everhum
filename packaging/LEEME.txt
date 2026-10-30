@@ -1,0 +1,39 @@
+4EVERHUM - tararea -> MIDI
+De la familia 4EVERTOOLS · colectivo 4EVER
+
+INSTALAR
+  1. Descomprime este zip completo (clic derecho > Extraer todo).
+  2. Doble clic en instalar.bat y acepta el permiso de administrador.
+     Si Windows muestra "Windows protegio su PC": Mas informacion > Ejecutar de todas formas
+     (el instalador no esta firmado digitalmente).
+  3. En FL Studio: Options > Manage plugins > Find plugins.
+
+USAR EN FL STUDIO
+  1. En el Mixer, elige un track libre y pon tu microfono como entrada.
+  2. Agrega 4EVERHUM en un slot de efectos de ese track.
+  3. GRABAR -> tararea -> DETENER. Usa audifonos para que el beat no entre al microfono.
+     Si grabas con el proyecto sonando, las notas quedan en su compas real.
+  4. Abre el piano roll de tu instrumento (Purity, etc.) y arrastra la melodia desde
+     el boton negro ARRASTRAR AL PIANO ROLL.
+
+LA HOJA (piano roll)
+  clic: elegir nota · arrastrar: mover · borde derecho: alargar
+  doble clic: agregar · clic derecho o Supr: borrar · Ctrl+Z / Ctrl+Y: deshacer / rehacer
+  AUTOMATICO: descarta tus ediciones y vuelve a la melodia detectada
+
+LOS CONTROLES
+  DETECCION  Sensibilidad, Nota minima, Estabilidad, Filtro de ruido, Alta precision
+  MUSICA     Tonalidad (Auto la detecta, con codigo Camelot), Escala, Cuantizar, Fuerza, Octava
+  Todo se recalcula al instante sobre la ultima toma: no hace falta volver a grabar.
+  TEMA (arriba a la derecha): Sotano 4EVER, Linea 4 Ever, 4EVERTALE, Libreta Negra, 4EVERPALOOZA.
+
+SIN DAW
+  "4EVERHUM" en el menu Inicio abre la app sola. La primera vez: Options > Audio/MIDI Settings,
+  elige tu microfono y desmarca "Mute audio input".
+
+TERMINAL
+  hum2midi toma.wav --bpm 140 --tonalidad Am --cuantizar 1/8
+  hum2midi --ayuda
+
+DESINSTALAR
+  Doble clic en desinstalar.bat (queda en %LOCALAPPDATA%\4EVERHUM). Tus .mid y .wav no se borran.

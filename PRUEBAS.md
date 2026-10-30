@@ -54,3 +54,36 @@ el motor con datos reales.
       soltar el clip al inicio de ese compás cada nota cae donde la canté
 - [ ] Grabando con FL detenido: la primera nota cae en el tiempo 1
 - [ ] El `.mid` arrastrado se llama `4EVERHUM_<tonalidad>_<bpm>bpm_...`
+
+## 6. Edición de notas (Sprint 4)
+
+- [ ] Clic en una nota la marca; arrastrarla la mueve en tiempo (pegada al grid) y en altura
+- [ ] Arrastrar el borde derecho alarga o acorta la nota
+- [ ] Doble clic en un espacio vacío agrega una nota (cae en la escala)
+- [ ] Clic derecho o Supr borra la nota
+- [ ] DESHACER / REHACER (y Ctrl+Z / Ctrl+Y) funcionan
+- [ ] El sello dice EDITADO A MANO y AUTOMÁTICO vuelve a la melodía detectada
+- [ ] Al arrastrar con el asa ARRASTRAR AL PIANO ROLL, FL recibe la versión editada
+- [ ] Guardar el proyecto de FL, cerrarlo y abrirlo: la edición sigue ahí
+- [ ] La ventana se puede agrandar desde la esquina y el piano roll crece
+
+## 7. Alta precisión (Sprint 5)
+
+- [ ] Con **Alta precisión** activada (por defecto) una voz grave o rasposa no salta de octava
+- [ ] Desactivarla y volver a activarla re-analiza la toma al instante
+- [ ] Una toma larga (1–2 minutos) se analiza en pocos segundos
+
+## 8. Temas (Sprint 6)
+
+- [ ] El selector de arriba a la derecha cambia entre los 5 temas al instante
+- [ ] Cada tema muestra su logo y sus tipografías, y todo se lee bien
+- [ ] Al cerrar y volver a abrir el plugin, se mantiene el tema elegido
+
+## 9. Instalador (1.0.0)
+
+- [ ] `instalar.bat` pide administrador una vez y termina con "Listo."
+- [ ] FL encuentra 4EVERHUM después de *Find plugins*
+- [ ] "4EVERHUM" aparece en el menú Inicio y abre la app sola
+- [ ] En una terminal nueva, `hum2midi --ayuda` funciona
+- [ ] Reinstalar encima (con FL cerrado) reemplaza la versión anterior
+- [ ] `desinstalar.bat` quita el plugin, la app, el acceso directo y la entrada del PATH

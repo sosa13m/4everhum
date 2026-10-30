@@ -32,6 +32,7 @@ void printUsage()
         "  --estabilidad <0-100>        Cuanto ignora vibrato/desafinacion (por defecto 50)\n"
         "  --octava <-2..2>             Transponer en octavas (por defecto 0)\n"
         "  --sin-filtro                 Desactiva el filtro de ruido automatico\n"
+        "  --rapido                     Usa YIN en vez de pYIN (menos preciso, mas rapido)\n"
         "  --tonalidad <auto|C|C#|Db|...|B>[m]  Tonalidad (por defecto auto; 'Am' = La menor)\n"
         "  --escala <nombre>            auto, mayor, menor, menor-armonica, dorica, frigia,\n"
         "                               penta-mayor, penta-menor o ninguna (por defecto auto)\n"
@@ -126,6 +127,7 @@ int main (int argc, char* argv[])
         else if (a == "--estabilidad")   { ok = readNumber (args, i, v); settings.stability   = (float) v; }
         else if (a == "--octava")        { ok = readNumber (args, i, v) && v >= -2.0 && v <= 2.0; octave = v; }
         else if (a == "--sin-filtro")    { settings.autoGate = false; }
+        else if (a == "--rapido")        { settings.highPrecision = false; }
         else if (a == "--fuerza")        { ok = readNumber (args, i, v) && v >= 0.0 && v <= 100.0; clipSettings.strength = (float) (v / 100.0); }
         else if (a == "--tonalidad")
         {
@@ -185,9 +187,9 @@ int main (int argc, char* argv[])
     // --- Analizar ----------------------------------------------------------
     std::printf ("Entrada: %s  (%.1f s, %.0f Hz, %d canal%s)\n", input.getFileName().toRawUTF8(),
                  numSamples / reader->sampleRate, reader->sampleRate, numCh, numCh == 1 ? "" : "es");
-    std::printf ("Ajustes: sensibilidad %.0f | nota minima %.0f ms | estabilidad %.0f | octava %+d | filtro %s\n",
+    std::printf ("Ajustes: sensibilidad %.0f | nota minima %.0f ms | estabilidad %.0f | octava %+d | filtro %s | %s\n",
                  settings.sensitivity, settings.minNoteMs, settings.stability, (int) octave,
-                 settings.autoGate ? "si" : "no");
+                 settings.autoGate ? "si" : "no", settings.highPrecision ? "pYIN" : "YIN");
 
     const auto notes = fourever::analyze (mono.data(), mono.size(), reader->sampleRate, settings);
 

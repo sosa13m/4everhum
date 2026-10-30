@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(FourEverHum VERSION 0.1.0 LANGUAGES C CXX)
+project(FourEverHum VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,7 +17,8 @@ add_library(fourever_dsp STATIC
     Source/dsp/PitchTracker.cpp
     Source/dsp/NoteSegmenter.cpp
     Source/dsp/Analyzer.cpp
-    Source/dsp/Music.cpp)
+    Source/dsp/Music.cpp
+    Source/dsp/ClipEdits.cpp)
 target_include_directories(fourever_dsp PUBLIC Source)
 set_target_properties(fourever_dsp PROPERTIES POSITION_INDEPENDENT_CODE ON) # va dentro del VST3 (libreria compartida)
 if(MSVC)
@@ -35,6 +36,14 @@ if(FOUREVERHUM_BUILD_TESTS)
     add_executable(music_tests tests/test_music.cpp)
     target_link_libraries(music_tests PRIVATE fourever_dsp)
     add_test(NAME music_tests COMMAND music_tests)
+
+    add_executable(edit_tests tests/test_edits.cpp)
+    target_link_libraries(edit_tests PRIVATE fourever_dsp)
+    add_test(NAME edit_tests COMMAND edit_tests)
+
+    add_executable(bench_pitch tests/bench_pitch.cpp)
+    target_link_libraries(bench_pitch PRIVATE fourever_dsp)
+    add_test(NAME bench_pitch COMMAND bench_pitch)
 endif()
 
 if(NOT FOUREVERHUM_BUILD_PLUGIN)
@@ -74,20 +83,33 @@ juce_add_plugin(FourEverHum
     NEEDS_MIDI_INPUT              FALSE
     NEEDS_MIDI_OUTPUT             FALSE
     IS_MIDI_EFFECT                FALSE
-    EDITOR_WANTS_KEYBOARD_FOCUS   FALSE
+    EDITOR_WANTS_KEYBOARD_FOCUS   TRUE
     MICROPHONE_PERMISSION_ENABLED TRUE
     MICROPHONE_PERMISSION_TEXT    "4EVERHUM necesita el microfono para convertir tu voz en MIDI."
     VST3_CATEGORIES               Fx Analyzer
     AU_MAIN_TYPE                  kAudioUnitType_Effect
     COPY_PLUGIN_AFTER_BUILD       FALSE)
 
-# Fuentes y logo embebidos en el plugin (identidad visual SOTANO 4EVER).
+# Fuentes y logos embebidos en el plugin (los 5 temas de 4EVERTOOLS).
 juce_add_binary_data(FourEverHumAssets SOURCES
     Resources/fonts/Anton-Regular.ttf
     Resources/fonts/SpecialElite-Regular.ttf
     Resources/fonts/SpaceMono-Regular.ttf
     Resources/fonts/SpaceMono-Bold.ttf
-    Resources/images/logo-4ever.png)
+    Resources/fonts/SedgwickAveDisplay-Regular.ttf
+    Resources/fonts/Bungee-Regular.ttf
+    Resources/fonts/Inter-Medium.ttf
+    Resources/fonts/PixelifySans-SemiBold.ttf
+    Resources/fonts/PressStart2P-Regular.ttf
+    Resources/fonts/PermanentMarker-Regular.ttf
+    Resources/fonts/Caveat-Bold.ttf
+    Resources/fonts/Archivo-SemiBold.ttf
+    Resources/fonts/BigShouldersDisplay-Black.ttf
+    Resources/images/logo-4ever.png
+    Resources/images/logo-linea.png
+    Resources/images/logo-tale.png
+    Resources/images/logo-blackbook.png
+    Resources/images/logo-neon.png)
 
 target_sources(FourEverHum PRIVATE
     Source/PluginProcessor.cpp

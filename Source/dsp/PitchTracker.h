@@ -15,8 +15,16 @@ struct PitchFrame
     float  rmsDb      = -120.0f;
 };
 
+enum class PitchMethod
+{
+    yin,  // YIN clasico: rapido, decide frame a frame
+    pyin  // pYIN (Mauch & Dixon 2014): varios candidatos por frame + HMM/Viterbi;
+          // sigue la melodia en el tiempo y evita saltos de octava
+};
+
 struct PitchTrackerSettings
 {
+    PitchMethod method  = PitchMethod::yin;
     double targetRate   = 16000.0; // la voz se decima a ~16 kHz antes de analizar
     float  minF0Hz      = 65.0f;   // ~C2, voces graves
     float  maxF0Hz      = 1100.0f; // ~C6, silbidos/falsete
@@ -32,7 +40,7 @@ struct PitchTrackerSettings
 // el ruido de fondo medido (percentil 10 de la energia) + margen.
 float effectiveSilenceDb (const std::vector<float>& frameRmsDb, const PitchTrackerSettings& settings);
 
-// Deteccion de pitch monofonica con YIN (de Cheveigne & Kawahara, 2002).
+// Deteccion de pitch monofonica con YIN (de Cheveigne & Kawahara, 2002) o pYIN.
 // Pensado para correr offline en un hilo de fondo, nunca en el audio thread.
 std::vector<PitchFrame> trackPitch (const float* samples,
                                     std::size_t numSamples,
