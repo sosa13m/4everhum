@@ -67,7 +67,7 @@ try {
     New-Item -ItemType Directory -Force -Path $AppDir | Out-Null
     if ($standalone) { Copy-Item -Force $standalone.FullName (Join-Path $AppDir '4EVERHUM.exe') }
     if ($hum2midi)   { Copy-Item -Force $hum2midi.FullName   (Join-Path $AppDir 'hum2midi.exe') }
-    foreach ($doc in @('LEEME.txt', 'desinstalar.ps1', 'desinstalar.bat')) {
+    foreach ($doc in @('LEEME.txt', 'desinstalar.ps1', 'desinstalar.bat', 'LICENSE', 'TERCEROS.md')) {
         $src = Join-Path $here $doc
         if (Test-Path $src) { Copy-Item -Force $src (Join-Path $AppDir $doc) }
     }

@@ -1,0 +1,45 @@
+name: Reportar un error
+description: Algo no funciona como debería
+title: "[Error] "
+labels: [error]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por avisar. Si el problema es que **detecta mal tu voz**, lo que más ayuda es
+        la toma: en el plugin pulsa **Guardar toma .wav…** y arrastra el archivo a este reporte
+        (si GitHub no acepta .wav, comprímelo en .zip).
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema
+      options: [Windows 11, Windows 10, macOS (Apple Silicon), macOS (Intel), Otro]
+    validations:
+      required: true
+  - type: input
+    id: daw
+    attributes:
+      label: DAW y versión
+      placeholder: "FL Studio 2025, Ableton 12, Logic, app sin DAW..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión de 4EVERHUM
+      description: Aparece al pie de la ventana del plugin.
+      placeholder: "1.1.0"
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: ¿Qué pasó y qué esperabas?
+      placeholder: "Tarareé 5 notas y salieron 8; la tercera quedó una octava más arriba..."
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para que vuelva a pasar
+      placeholder: |
+        1. Abrí el plugin en el track del micrófono
+        2. ...

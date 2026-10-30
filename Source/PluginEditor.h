@@ -1,3 +1,8 @@
+// 4EVERHUM - tararea -> MIDI
+// Copyright (C) 2026 sosa13m / colectivo 4EVER
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Este programa es software libre: ver el archivo LICENSE.
+
 #pragma once
 
 #include "PluginProcessor.h"
@@ -60,11 +65,12 @@ private:
     void paintKeyStamp (juce::Graphics&);
     void paintRowTab (juce::Graphics&, juce::Rectangle<int> row, const juce::String& title);
 
-    FourEverHumProcessor& processor;
+    FourEverHumProcessor& humProcessor;
     HumLookAndFeel lookAndFeel;
     juce::TooltipWindow tooltips { this, 600 };
 
     juce::ComboBox   themeBox;
+    juce::HyperlinkButton aboutLink; // aviso de licencia (AGPLv3) y link al codigo
     juce::TextButton recordButton;
     juce::TextButton saveMidiButton;
     juce::TextButton saveWavButton;

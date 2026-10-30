@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Cómo instalar y usar 4EVERHUM
+    url: https://github.com/sosa13m/4everhum#readme
+    about: Instalación, controles y preguntas frecuentes.

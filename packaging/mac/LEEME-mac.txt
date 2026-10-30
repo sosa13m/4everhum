@@ -1,0 +1,38 @@
+4EVERHUM - tararea -> MIDI (macOS)
+De la familia 4EVERTOOLS · colectivo 4EVER
+Funciona en Mac con Apple Silicon (M1/M2/M3/M4) e Intel, macOS 10.15 o mas nuevo.
+
+INSTALAR
+  1. Descomprime el zip (doble clic).
+  2. Abre la Terminal (Aplicaciones > Utilidades > Terminal), escribe "bash " (con un
+     espacio al final), arrastra el archivo instalar.command a la ventana y pulsa Enter.
+     (Tambien puedes hacer doble clic en instalar.command; si macOS dice que no puede
+     abrirlo, ve a Ajustes del Sistema > Privacidad y seguridad > "Abrir igualmente".)
+  3. FL Studio: Options > Manage plugins > Find plugins.
+     Logic / GarageBand: el plugin aparece en Audio Units > 4EVERTOOLS > 4EVERHUM.
+
+  El plugin no esta firmado por Apple (no tiene costo de desarrollador). El instalador
+  le quita la "cuarentena" para que macOS deje cargarlo.
+
+USAR
+  1. Pon 4EVERHUM como efecto en el canal donde entra tu microfono.
+  2. GRABAR -> tararea -> DETENER. Usa audifonos para que el beat no entre al microfono.
+     La primera vez macOS te va a pedir permiso para usar el microfono: aceptalo.
+  3. Arrastra la melodia al piano roll desde el boton negro ARRASTRAR AL PIANO ROLL.
+
+LA HOJA (piano roll)
+  clic: elegir nota · arrastrar: mover · borde derecho: alargar
+  doble clic: agregar · clic derecho o Supr: borrar · Cmd+Z / Cmd+Y: deshacer / rehacer
+
+APP SIN DAW
+  ~/Applications/4EVERHUM/4EVERHUM.app. La primera vez: Options > Audio/MIDI Settings,
+  elige tu microfono y desmarca "Mute audio input".
+
+TERMINAL
+  ~/Applications/4EVERHUM/hum2midi toma.wav --bpm 140 --tonalidad Am
+
+DESINSTALAR
+  bash ~/Applications/4EVERHUM/desinstalar.command
+
+Codigo, ayuda y reporte de errores: https://github.com/sosa13m/4everhum
+Software libre bajo AGPLv3, sin garantia (ver LICENSE y TERCEROS.md).

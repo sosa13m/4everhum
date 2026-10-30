@@ -1,3 +1,8 @@
+// 4EVERHUM - tararea -> MIDI
+// Copyright (C) 2026 sosa13m / colectivo 4EVER
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Este programa es software libre: ver el archivo LICENSE.
+
 #include "PluginEditor.h"
 
 #include "midi/MidiExporter.h"
@@ -25,7 +30,7 @@ void styleCaption (juce::Label& l)
 } // namespace
 
 FourEverHumEditor::FourEverHumEditor (FourEverHumProcessor& p)
-    : AudioProcessorEditor (&p), processor (p)
+    : AudioProcessorEditor (&p), humProcessor (p)
 {
     // El tema es una preferencia del usuario (la misma para todos sus proyectos).
     theme::setCurrent (theme::loadSavedThemeId());
@@ -42,6 +47,14 @@ FourEverHumEditor::FourEverHumEditor (FourEverHumProcessor& p)
             applyTheme (theme::all()[(std::size_t) idx].id);
     };
     addAndMakeVisible (themeBox);
+
+    // Aviso legal de la AGPL: version, licencia y donde esta el codigo.
+    aboutLink.setButtonText (theme::ui ("4EVERHUM v" JucePlugin_VersionString
+                                        " · software libre (AGPLv3), sin garantía · github.com/sosa13m/4everhum"));
+    aboutLink.setURL (juce::URL ("https://github.com/sosa13m/4everhum"));
+    aboutLink.setTooltip (theme::ui ("Abre el repositorio: código, descargas, licencia y reporte de errores."));
+    aboutLink.setJustificationType (juce::Justification::centredRight);
+    addAndMakeVisible (aboutLink);
 
     setStyle (recordButton, "primary");
     recordButton.onClick = [this] { toggleRecording(); };
@@ -66,8 +79,8 @@ FourEverHumEditor::FourEverHumEditor (FourEverHumProcessor& p)
     addAndMakeVisible (statusLabel);
 
     preview.createMidiFileForDrag = [this] { return writeTempMidi(); };
-    preview.onNotesEdited      = [this] (std::vector<fourever::ClipNote> edited) { processor.setEditedNotes (std::move (edited)); };
-    preview.onRestoreAutomatic = [this] { processor.clearEditedNotes(); };
+    preview.onNotesEdited      = [this] (std::vector<fourever::ClipNote> edited) { humProcessor.setEditedNotes (std::move (edited)); };
+    preview.onRestoreAutomatic = [this] { humProcessor.clearEditedNotes(); };
     addAndMakeVisible (preview);
 
     // --- Perillas -----------------------------------------------------------
@@ -109,7 +122,7 @@ FourEverHumEditor::FourEverHumEditor (FourEverHumProcessor& p)
         b.onClick = [this, i] { if (octaveAttachment) octaveAttachment->setValueAsCompleteGesture ((float) i); };
         addAndMakeVisible (b);
     }
-    if (auto* octaveParam = processor.params.getParameter (paramIds::octave))
+    if (auto* octaveParam = humProcessor.params.getParameter (paramIds::octave))
     {
         octaveAttachment = std::make_unique<juce::ParameterAttachment> (*octaveParam, [this] (float index)
         {
@@ -123,14 +136,14 @@ FourEverHumEditor::FourEverHumEditor (FourEverHumProcessor& p)
     autoGateToggle.setTooltip (theme::ui ("Mide el ruido de fondo de cada toma (por ejemplo el beat "
                                           "que se filtra por los audífonos) e ignora todo lo que esté a ese nivel."));
     addAndMakeVisible (autoGateToggle);
-    autoGateAttachment = std::make_unique<ButtonAttachment> (processor.params, paramIds::autoGate, autoGateToggle);
+    autoGateAttachment = std::make_unique<ButtonAttachment> (humProcessor.params, paramIds::autoGate, autoGateToggle);
 
     precisionToggle.setButtonText (theme::ui ("Alta precisión"));
     precisionToggle.setTooltip (theme::ui ("Usa pYIN: sigue la melodía en el tiempo y evita saltos de octava, "
                                            "sobre todo con voz rasposa o grave. Desactívalo solo si una toma muy "
                                            "larga tarda en analizarse."));
     addAndMakeVisible (precisionToggle);
-    precisionAttachment = std::make_unique<ButtonAttachment> (processor.params, paramIds::precision, precisionToggle);
+    precisionAttachment = std::make_unique<ButtonAttachment> (humProcessor.params, paramIds::precision, precisionToggle);
 
     // Limpia los .mid temporales de arrastres de dias anteriores.
     const auto cutoff = juce::Time::getCurrentTime() - juce::RelativeTime::days (1);
@@ -177,6 +190,8 @@ void FourEverHumEditor::refreshThemedComponents()
 
     statusLabel.setColour (juce::Label::textColourId, t.textOnWall);
     statusLabel.setFont (theme::typed (15.0f));
+    aboutLink.setColour (juce::HyperlinkButton::textColourId, t.dimOnWall);
+    aboutLink.setFont (theme::mono (10.0f), false, juce::Justification::centredRight);
 
     for (int i = 0; i < (int) theme::all().size(); ++i)
         if (theme::all()[(std::size_t) i].id == t.id)
@@ -202,7 +217,7 @@ void FourEverHumEditor::setupKnob (Knob& k, const juce::String& paramId, const j
     styleCaption (k.label);
     addAndMakeVisible (k.label);
 
-    k.attachment = std::make_unique<SliderAttachment> (processor.params, paramId, k.slider);
+    k.attachment = std::make_unique<SliderAttachment> (humProcessor.params, paramId, k.slider);
 }
 
 void FourEverHumEditor::setupChoice (Choice& c, const juce::String& paramId, const juce::String& title,
@@ -216,7 +231,7 @@ void FourEverHumEditor::setupChoice (Choice& c, const juce::String& paramId, con
     styleCaption (c.label);
     addAndMakeVisible (c.label);
 
-    c.attachment = std::make_unique<ComboAttachment> (processor.params, paramId, c.box);
+    c.attachment = std::make_unique<ComboAttachment> (humProcessor.params, paramId, c.box);
 }
 
 juce::String FourEverHumEditor::keyLabelForFile() const
@@ -235,10 +250,10 @@ juce::File FourEverHumEditor::tempFolder()
 
 void FourEverHumEditor::toggleRecording()
 {
-    if (processor.getState() == FourEverHumProcessor::State::recording)
-        processor.stopRecording();
+    if (humProcessor.getState() == FourEverHumProcessor::State::recording)
+        humProcessor.stopRecording();
     else
-        processor.startRecording();
+        humProcessor.startRecording();
     transientUntilMs = 0;
     timerCallback();
 }
@@ -252,12 +267,12 @@ void FourEverHumEditor::showStatus (const juce::String& text)
 
 juce::File FourEverHumEditor::writeTempMidi()
 {
-    const auto bpm  = processor.getResultBpm();
+    const auto bpm  = humProcessor.getResultBpm();
     const auto file = tempFolder().getChildFile (fourever::suggestedMidiFileName (bpm, keyLabelForFile()));
     fourever::MidiExportSettings settings;
     settings.bpm = bpm;
 
-    if (! fourever::writeMidiFile (file, processor.getClip().notes, settings))
+    if (! fourever::writeMidiFile (file, humProcessor.getClip().notes, settings))
         return {};
     return file;
 }
@@ -268,7 +283,7 @@ void FourEverHumEditor::saveMidiAs()
         return;
 
     const auto start = juce::File::getSpecialLocation (juce::File::userMusicDirectory)
-                           .getChildFile (fourever::suggestedMidiFileName (processor.getResultBpm(), keyLabelForFile()));
+                           .getChildFile (fourever::suggestedMidiFileName (humProcessor.getResultBpm(), keyLabelForFile()));
 
     fileChooser = std::make_unique<juce::FileChooser> (theme::ui ("Guardar melodía como MIDI"), start, "*.mid");
     fileChooser->launchAsync (juce::FileBrowserComponent::saveMode
@@ -282,8 +297,8 @@ void FourEverHumEditor::saveMidiAs()
                                   file = file.withFileExtension ("mid");
 
                                   fourever::MidiExportSettings settings;
-                                  settings.bpm = processor.getResultBpm();
-                                  const bool ok = fourever::writeMidiFile (file, processor.getClip().notes, settings);
+                                  settings.bpm = humProcessor.getResultBpm();
+                                  const bool ok = fourever::writeMidiFile (file, humProcessor.getClip().notes, settings);
                                   showStatus (ok ? theme::ui ("Guardado: ") + file.getFileName()
                                                  : theme::ui ("No se pudo guardar el archivo."));
                               });
@@ -291,7 +306,7 @@ void FourEverHumEditor::saveMidiAs()
 
 void FourEverHumEditor::saveTakeAs()
 {
-    auto take = processor.getLastTake();
+    auto take = humProcessor.getLastTake();
     if (take == nullptr || take->samples.empty())
         return;
 
@@ -333,30 +348,30 @@ void FourEverHumEditor::saveTakeAs()
 void FourEverHumEditor::timerCallback()
 {
     using State = FourEverHumProcessor::State;
-    const auto state = processor.getState();
+    const auto state = humProcessor.getState();
 
     // El buffer de grabacion se lleno solo: cerramos la toma.
-    if (state == State::recording && ! processor.isCapturing())
-        processor.stopRecording();
+    if (state == State::recording && ! humProcessor.isCapturing())
+        humProcessor.stopRecording();
 
     // Medidor con caida suave.
-    meterLevel = juce::jmax (processor.getInputLevel(), meterLevel * 0.9f);
+    meterLevel = juce::jmax (humProcessor.getInputLevel(), meterLevel * 0.9f);
     repaint (meterArea.expanded (2));
 
-    const auto now   = processor.getState();
+    const auto now   = humProcessor.getState();
     const bool isRec = now == State::recording;
     recordButton.setButtonText (isRec ? theme::ui ("■  Detener") : theme::ui ("●  Grabar"));
     recordButton.setEnabled (now != State::analyzing);
 
-    if (processor.getResultVersion() != shownVersion)
+    if (humProcessor.getResultVersion() != shownVersion)
     {
-        shownVersion = processor.getResultVersion();
-        currentClip  = processor.getClip();
-        preview.setClip (currentClip, processor.getResultBeatsPerBar());
+        shownVersion = humProcessor.getResultVersion();
+        currentClip  = humProcessor.getClip();
+        preview.setClip (currentClip, humProcessor.getResultBeatsPerBar());
         repaint (stampArea.expanded (12));
     }
     saveMidiButton.setEnabled (preview.hasNotes() && ! isRec);
-    saveWavButton.setEnabled (processor.getLastTake() != nullptr && ! isRec);
+    saveWavButton.setEnabled (humProcessor.getLastTake() != nullptr && ! isRec);
 
     if (juce::Time::getMillisecondCounter() < transientUntilMs && ! isRec)
     {
@@ -368,7 +383,7 @@ void FourEverHumEditor::timerCallback()
         switch (now)
         {
             case State::idle:      status = theme::ui ("Listo. Pon el plugin en el track donde entra tu micrófono."); break;
-            case State::recording: status = theme::ui ("Grabando… ") + juce::String (processor.getRecordedSeconds(), 1) + " s"; break;
+            case State::recording: status = theme::ui ("Grabando… ") + juce::String (humProcessor.getRecordedSeconds(), 1) + " s"; break;
             case State::analyzing: status = theme::ui ("Analizando tu voz…"); break;
             case State::ready:
             {
@@ -380,20 +395,20 @@ void FourEverHumEditor::timerCallback()
                     status = theme::ui ("No se detectaron notas. Sube la Sensibilidad o acércate al micrófono.");
                 else if (currentClip.alignedToProject)
                     status = juce::String ((int) n) + theme::ui (" notas, alineadas desde el compás ")
-                           + juce::String (juce::roundToInt (currentClip.originBeat / juce::jmax (1, processor.getResultBeatsPerBar())) + 1)
+                           + juce::String (juce::roundToInt (currentClip.originBeat / juce::jmax (1, humProcessor.getResultBeatsPerBar())) + 1)
                            + theme::ui (" del proyecto.");
                 else
                     status = juce::String ((int) n) + theme::ui (n == 1 ? " nota detectada." : " notas detectadas.")
-                           + (processor.getLastTake() != nullptr ? theme::ui (" Gira las perillas para afinar el resultado.") : juce::String());
+                           + (humProcessor.getLastTake() != nullptr ? theme::ui (" Gira las perillas para afinar el resultado.") : juce::String());
                 break;
             }
         }
         statusLabel.setText (status, juce::dontSendNotification);
     }
 
-    if (! juce::exactlyEqual (processor.getHostBpm(), shownBpm))
+    if (! juce::exactlyEqual (humProcessor.getHostBpm(), shownBpm))
     {
-        shownBpm = processor.getHostBpm();
+        shownBpm = humProcessor.getHostBpm();
         repaint (bpmBadgeArea.expanded (4));
     }
 }
@@ -446,7 +461,7 @@ void FourEverHumEditor::paintKeyStamp (juce::Graphics& g)
     g.drawRect (r.reduced (4.0f), 1.0f);
 
     const bool known = currentClip.scaleUsed != fourever::Scale::none;
-    const bool chosen = processor.currentClipSettings().keyRoot >= 0;
+    const bool chosen = humProcessor.currentClipSettings().keyRoot >= 0;
 
     auto inner = r.reduced (12.0f, 6.0f);
     g.setFont (theme::display (20.0f));
@@ -618,7 +633,7 @@ void FourEverHumEditor::paintHeader (juce::Graphics& g)
         g.fillEllipse (juce::Rectangle<float> (8.0f, 8.0f).withCentre ({ badge.getX() + 14.0f, badge.getCentreY() }));
         g.setColour (theme::c().ink);
         g.setFont (theme::typed (14.0f));
-        g.drawText ("TEMPO " + juce::String (processor.getHostBpm(), 1) + " BPM",
+        g.drawText ("TEMPO " + juce::String (humProcessor.getHostBpm(), 1) + " BPM",
                     badge.withTrimmedLeft (24.0f).withTrimmedRight (8.0f), juce::Justification::centred);
     }
 }
@@ -777,7 +792,8 @@ void FourEverHumEditor::resized()
 
     // Hoja de trabajo.
     cardArea = juce::Rectangle<int> (22, headerHeight + 92, getWidth() - 44, 0)
-                   .withBottom (getHeight() - 22);
+                   .withBottom (getHeight() - 24);
+    aboutLink.setBounds (cardArea.getX(), cardArea.getBottom() + 3, cardArea.getWidth(), 18);
     auto inner = cardArea.reduced (22, 0).withTrimmedTop (28).withTrimmedBottom (16);
 
     controlsArea = inner.removeFromBottom (210);

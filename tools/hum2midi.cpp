@@ -1,3 +1,8 @@
+// 4EVERHUM - tararea -> MIDI
+// Copyright (C) 2026 sosa13m / colectivo 4EVER
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Este programa es software libre: ver el archivo LICENSE.
+
 // hum2midi: convierte una grabacion de tarareo en .mid desde la terminal, con
 // el mismo motor y los mismos ajustes que el plugin.
 //

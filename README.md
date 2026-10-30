@@ -1,191 +1,221 @@
-# 4EVERHUM — tararea → MIDI
+<div align="center">
 
-Plugin de audio (VST3 / Standalone) de la familia **4EVERTOOLS**. Grabas tu voz
-tarareando, el plugin detecta la melodía —con su tonalidad, en escala y en el
-grid— y la **arrastras directo al piano roll** de cualquier instrumento (Purity,
-Nexus, Serum…) en FL Studio, Ableton, Reaper, etc.
+# 4EVERHUM
 
-**Versión 1.0.0** · los cambios están en [CHANGELOG.md](CHANGELOG.md).
+**Tararea una melodía. Arrástrala al piano roll.**
 
----
+Plugin gratis y de código abierto para FL Studio, Ableton, Logic, Reaper y cualquier DAW.
+De la familia **4EVERTOOLS** · colectivo **4EVER** (Chile).
 
-## Instalar (Windows)
+[![Última versión](https://img.shields.io/github/v/release/sosa13m/4everhum?label=versi%C3%B3n&color=d93025)](https://github.com/sosa13m/4everhum/releases/latest)
+[![Build](https://github.com/sosa13m/4everhum/actions/workflows/build.yml/badge.svg)](https://github.com/sosa13m/4everhum/actions/workflows/build.yml)
+[![Licencia: AGPL v3](https://img.shields.io/badge/licencia-AGPLv3-121010)](LICENSE)
 
-1. Descarga el zip de la última versión en **Releases** del repo
-   (`4EVERHUM-v1.0.0-windows.zip`) y descomprímelo completo.
+### [⬇ Descargar para Windows](https://github.com/sosa13m/4everhum/releases/latest/download/4EVERHUM-windows.zip) · [⬇ Descargar para Mac](https://github.com/sosa13m/4everhum/releases/latest/download/4EVERHUM-macos.zip)
+
+<img src="docs/img/4everhum.png" alt="4EVERHUM: el piano roll con una melodía detectada, el sello de tonalidad y los controles" width="820">
+
+</div>
+
+## Qué hace
+
+1. **Grabas** tu voz tarareando, cantando o silbando, con el beat sonando.
+2. 4EVERHUM **detecta las notas**, la **tonalidad** (con código Camelot) y las
+   ajusta a la **escala** y al **grid** de tu proyecto.
+3. La **arrastras** al piano roll de cualquier instrumento (Purity, Nexus, Serum…)
+   y la melodía queda en su compás.
+
+Si algo no quedó como querías, giras una perilla y se recalcula al instante, o
+editas las notas a mano en el mismo plugin. No hace falta volver a grabar.
+
+## Instalar
+
+### Windows 10 / 11
+
+1. [Descarga `4EVERHUM-windows.zip`](https://github.com/sosa13m/4everhum/releases/latest/download/4EVERHUM-windows.zip)
+   y descomprímelo (clic derecho → *Extraer todo*).
 2. Doble clic en **`instalar.bat`** y acepta el permiso de administrador.
-   - Copia el plugin a `C:\Program Files\Common Files\VST3\` (donde lo busca FL).
-   - Instala la app Standalone (menú Inicio → **4EVERHUM**) y `hum2midi` en tu PATH.
-   - Si Windows dice "Windows protegió su PC": *Más información → Ejecutar de todas
-     formas* (el instalador no está firmado).
 3. En FL Studio: **Options → Manage plugins → Find plugins**.
 
-Para desinstalar: `desinstalar.bat` (queda en `%LOCALAPPDATA%\4EVERHUM`).
+### macOS 10.15 o más nuevo (Apple Silicon e Intel)
 
-## Usar en FL Studio
+1. [Descarga `4EVERHUM-macos.zip`](https://github.com/sosa13m/4everhum/releases/latest/download/4EVERHUM-macos.zip)
+   y descomprímelo.
+2. Abre la **Terminal**, escribe `bash ` (con un espacio), arrastra
+   **`instalar.command`** a la ventana y pulsa Enter.
+3. FL Studio: **Find plugins**. Logic / GarageBand: aparece en
+   *Audio Units → 4EVERTOOLS → 4EVERHUM*.
+
+Se instala el plugin **VST3** (y **AU** en Mac), una **app que funciona sin DAW** y
+la herramienta de terminal `hum2midi`. Para desinstalar está `desinstalar.bat` /
+`desinstalar.command`.
+
+## Usar (FL Studio)
 
 1. En el **Mixer**, elige un track libre y pon tu micrófono como entrada.
 2. Agrega **4EVERHUM** en un slot de efectos de ese track.
-3. **GRABAR** → tararea → **DETENER**. Usa audífonos para que el beat no se cuele
-   en el micrófono. Si grabas con el proyecto sonando, las notas quedan en su
-   compás real.
-4. Abre el piano roll del canal de tu instrumento y arrastra la melodía desde el
-   botón negro **ARRASTRAR AL PIANO ROLL**.
+3. Pulsa **GRABAR**, tararea y pulsa **DETENER**. Usa audífonos para que el beat
+   no entre al micrófono.
+4. Abre el piano roll de tu instrumento y arrastra la melodía desde el botón
+   negro **ARRASTRAR AL PIANO ROLL**.
 
-El plugin **no altera el audio**: la señal del micrófono pasa tal cual.
+En otros DAWs es igual: 4EVERHUM va como efecto en la pista del micrófono. El
+plugin no altera el audio, la señal pasa tal cual.
 
-## Los controles
+## Controles
 
-Todo se recalcula al instante sobre la última toma: no hay que volver a grabar.
-
-**DETECCIÓN**
+**Detección** (cómo se escucha tu voz)
 
 | Control | Si pasa esto… | …haz esto |
 |---|---|---|
-| **Sensibilidad** | Se pierden notas que sí cantaste / aparecen notas que no | Súbela / bájala |
+| **Sensibilidad** | Se pierden notas / aparecen notas que no cantaste | Súbela / bájala |
 | **Nota mínima** | Salen notas cortitas sueltas / se pierden notas rápidas | Súbela / bájala |
 | **Estabilidad** | Una nota larga se parte en varias / dos notas salen como una | Súbela / bájala |
-| **Filtro de ruido** | El beat se filtra al micrófono y aparecen notas graves fantasma | Déjalo activado |
-| **Alta precisión** | Voz grave o rasposa con saltos de octava | Déjalo activado (pYIN) |
+| **Filtro de ruido** | El beat se cuela en el micrófono | Déjalo activado |
+| **Alta precisión** | La voz salta de octava (voz grave o rasposa) | Déjalo activado |
 
-**MÚSICA**
+**Música** (cómo queda la melodía)
 
-- **Tonalidad**: en *Auto* el plugin la detecta y la estampa en el sello
-  (`LA MENOR · Am · 8A`, con el código Camelot del detector de 4EVERTOOLS). Si ya
-  sabes en qué tonalidad está el beat, elígela.
-- **Escala**: cada nota cae en la nota de la escala más cercana a lo que de verdad
-  cantaste. *Auto* usa mayor o menor según la tonalidad; también hay menor
-  armónica, dórica, frigia, pentatónicas y *Sin escala*.
-- **Cuantizar** y **Fuerza**: de 1/4 a 1/32 y tresillos (1/8T, 1/16T). Con fuerza
-  100% quedan exactas; con menos conservan algo de tu groove.
-- **Octava**: sube o baja toda la melodía hasta 2 octavas.
+- **Tonalidad**: en *Auto* la detecta y la estampa en el sello rojo
+  (`LA MENOR · Am · 8A`). Si ya sabes en qué tonalidad está el beat, elígela.
+- **Escala**: cada nota cae en la nota de la escala más cercana a lo que cantaste.
+  Mayor, menor, menor armónica, dórica, frigia, pentatónicas o *sin escala*.
+- **Cuantizar** y **Fuerza**: de 1/4 a 1/32 y tresillos. Con menos de 100% de
+  fuerza conserva algo de tu groove.
+- **Octava**: sube o baja toda la melodía.
 
-Los controles se guardan con el proyecto del DAW y se pueden automatizar.
+Si grabas con el proyecto sonando, las notas quedan en su **compás real**.
 
-## Editar la melodía
+## Editar a mano
 
-En la hoja (el piano roll):
+<img src="docs/img/edicion.png" alt="El piano roll de 4EVERHUM en modo edición" width="820">
 
-- **clic**: elegir una nota · **arrastrar**: moverla (tiempo en el grid, altura en
-  semitonos; con **Shift** se mueve libre)
-- **arrastrar el borde derecho**: alargarla o acortarla
-- **doble clic** en un espacio vacío: agregar una nota (ya en la escala)
-- **clic derecho** o **Supr**: borrar · **flechas**: mover la nota elegida
-- **Deshacer / Rehacer** (o Ctrl+Z / Ctrl+Y)
-- **Automático**: descarta tus ediciones y vuelve a la melodía detectada
-
-Mientras la melodía está editada a mano, las perillas no la cambian. Las
-ediciones se guardan con el proyecto.
+**Clic** para elegir una nota y **arrastrar** para moverla. Arrastrando el **borde
+derecho** la alargas; con **doble clic** agregas una nota y con **clic derecho** o
+**Supr** la borras. Ctrl+Z / Ctrl+Y deshacen y rehacen. **Automático** descarta las
+ediciones y vuelve a lo detectado. Todo se guarda con el proyecto.
 
 ## Temas
 
-Arriba a la derecha eliges el tema, igual que en 4EVERTOOLS. Se recuerda para la
-próxima vez.
+<img src="docs/img/temas.png" alt="Los cinco temas: Sótano 4EVER, Linea 4 Ever, 4EVERTALE, Libreta Negra y 4EVERPALOOZA" width="820">
 
-| Tema | Mundo | Tipografías |
-|---|---|---|
-| **SÓTANO 4EVER** | disquería en un sótano | Anton · Special Elite · Space Mono |
-| **LINEA 4 EVER** | metro con graffiti | Sedgwick Ave Display · Bungee · Inter |
-| **4EVERTALE** | RPG de 16 bits | Pixelify Sans · Press Start 2P |
-| **LIBRETA NEGRA** | blackbook en blanco y negro | Permanent Marker · Caveat |
-| **4EVERPALOOZA** | festival, verde tóxico y rosado | Big Shoulders Display · Archivo |
+Los mismos temas de 4EVERTOOLS: **SÓTANO 4EVER**, **LINEA 4 EVER**, **4EVERTALE**,
+**LIBRETA NEGRA** y **4EVERPALOOZA**. Se eligen arriba a la derecha y el plugin
+recuerda tu elección.
 
-La ventana se puede agrandar desde la esquina: crece el piano roll.
+## Preguntas frecuentes
+
+**Windows dice "Windows protegió su PC".**
+El instalador no está firmado digitalmente (un certificado cuesta dinero). Haz
+clic en *Más información → Ejecutar de todas formas*.
+
+**macOS dice que no puede abrir `instalar.command` o que está dañado.**
+Instálalo desde la Terminal como en el paso 2 (`bash ` + arrastrar el archivo).
+El instalador le quita la cuarentena al plugin para que macOS lo deje cargar.
+
+**FL Studio no encuentra el plugin.**
+Corre *Find plugins* después de instalar. 4EVERHUM es un **efecto**: búscalo en
+un slot del Mixer, no en el Channel Rack. En Windows debe estar en
+`C:\Program Files\Common Files\VST3\4EVERHUM.vst3`.
+
+**El medidor MIC no se mueve.**
+Revisa que el track del Mixer tenga tu micrófono como entrada. En Windows:
+*Configuración → Privacidad → Micrófono* tiene que permitir el acceso a apps de
+escritorio. En Mac: acepta el permiso de micrófono. En la app sin DAW: *Options →
+Audio/MIDI Settings* y desmarca **Mute audio input**.
+
+**Las notas salen una octava más arriba o más abajo.**
+Usa **Octava**. Ojo: FL Studio llama **C5** al Do central (otros DAWs dicen C4),
+y 4EVERHUM usa la misma convención que FL.
+
+**¿Funciona en tiempo real?**
+No: grabas, el plugin analiza (menos de un segundo) y arrastras. Así el
+resultado es mucho más preciso que convertir la voz nota por nota en vivo.
+
+**¿Puedo usar las melodías en mis temas, incluso comerciales?**
+Sí. Lo que creas con 4EVERHUM es tuyo; la licencia AGPL aplica al código del
+plugin, no a tu música.
+
+**Detectó mal mi voz.**
+[Abre un reporte](https://github.com/sosa13m/4everhum/issues/new/choose) y adjunta la
+toma (botón **Guardar toma .wav…**): con eso se puede mejorar el motor.
 
 ## hum2midi (terminal)
 
-El mismo motor del plugin, para convertir grabaciones sin abrir el DAW (por
-ejemplo una toma guardada con **Guardar toma .wav…** o grabada con el celular).
+El mismo motor, sin abrir el DAW. Acepta WAV, AIFF, FLAC y MP3:
 
-```powershell
-hum2midi toma.wav
-hum2midi toma.wav --bpm 140 --octava 1 -o melodia.mid
-hum2midi toma.wav --tonalidad Am --cuantizar 1/8
-hum2midi toma.wav --escala frigia --cuantizar 1/16T --fuerza 70
+```
+hum2midi toma.wav --bpm 140 --tonalidad Am --cuantizar 1/8
 hum2midi --ayuda
 ```
-
-Acepta WAV, AIFF, FLAC y MP3. Imprime la tonalidad (con Camelot y alternativas)
-y cada nota como queda en el `.mid` (nombres de FL: Do central = C5).
 
 ---
 
 ## Para desarrolladores
 
-### Compilar (Windows)
+### Compilar
 
-Requisitos: **Visual Studio 2022 Build Tools** ("Desarrollo para el escritorio con
-C++"), **CMake ≥ 3.22** y **Git**. JUCE 8 se descarga solo la primera vez.
+Requisitos: CMake 3.22+, Git y un compilador C++20 (Visual Studio 2022 en
+Windows, Xcode en Mac). JUCE 8 se descarga solo la primera vez.
 
-```powershell
-cmake -B build -A x64
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release --target FourEverHum_VST3 FourEverHum_Standalone hum2midi
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Sin instalar nada: cada `git push` compila en **GitHub Actions** (artifact
-*4EVERHUM-windows*), y cada tag `v*` publica una **Release** con el zip listo:
+En Mac, agrega `FourEverHum_AU` para el Audio Unit.
 
-```powershell
-git tag v1.0.0
-git push origin v1.0.0
-```
+### Publicar una versión
+
+Cada push a `main` compila Windows y Mac en GitHub Actions, corre los tests, y
+valida el plugin con pluginval (y el AU con auval). Para publicar:
+
+1. Sube la versión en `CMakeLists.txt` (`project(FourEverHum VERSION x.y.z)`).
+2. Agrega la sección `## x.y.z` en `CHANGELOG.md`.
+3. `git tag vx.y.z && git push origin vx.y.z`
+
+Eso crea la Release con `4EVERHUM-windows.zip` y `4EVERHUM-macos.zip`, y las
+notas sacadas del CHANGELOG.
 
 ### Tests
 
-```bash
-cmake -B build-tests -DFOUREVERHUM_BUILD_PLUGIN=OFF
-cmake --build build-tests
-ctest --test-dir build-tests --output-on-failure
-```
-
-- `dsp_tests`: detección con voz sintética (vibrato, ruido, portamento) a 44.1, 48
-  y 96 kHz; cada perilla; un cantante desafinado 35 cents y desfasado 40 ms que
-  tiene que salir exacto en escala y en corcheas.
-- `music_tests`: tonalidad en las 12 transposiciones, Camelot, escalas, grid con
-  fuerza y tresillos, alineado al compás.
-- `edit_tests`: mover, alargar, agregar, borrar, deshacer y rehacer.
-- `bench_pitch`: YIN vs pYIN con voces difíciles y altura real conocida (falla si
-  pYIN empeora algún caso). Voz rasposa: YIN 2/10 notas, pYIN 8/10.
+- `dsp_tests`: voz sintética (vibrato, ruido, portamento) a 44.1/48/96 kHz, cada
+  perilla, y un cantante desafinado 35 cents y desfasado 40 ms que tiene que salir
+  exacto en escala y en corcheas.
+- `music_tests`: tonalidad en las 12 transposiciones, Camelot, escalas, grid y
+  tresillos, alineado al compás.
+- `edit_tests`: edición manual y deshacer/rehacer.
+- `bench_pitch`: YIN vs pYIN con voces difíciles y altura real conocida.
 - `midi_export_test`: voz → `.mid` en disco → se relee y se verifica.
+
+Los tests pasan con GCC, Clang/libc++ y con AddressSanitizer + UBSan.
 
 ### Estructura
 
 ```
-Source/
-  dsp/PitchTracker.*     YIN y pYIN (candidatos + HMM/Viterbi), decimado a ~16 kHz
-  dsp/NoteSegmenter.*    Curva de altura -> notas (mediana, histeresis, portamentos)
-  dsp/Analyzer.*         Perillas -> parametros internos; analisis de una toma
-  dsp/Music.*            Tonalidad, Camelot, escalas, grid y el clip final en negras
-  dsp/ClipEdits.*        Edicion manual del clip y deshacer/rehacer
-  midi/MidiExporter.*    Clip -> .mid (960 PPQ, tempo del proyecto)
-  ui/NotePreview.*       Piano roll editable + asa de arrastre al DAW
-  ui/HumLookAndFeel.*    Botones, perillas, combos, casillas y tooltips
-  ui/Theme.*             Los 5 temas: paletas, tipografias, logos, texturas
-  PluginProcessor.*      Grabacion lock-free, analisis en hilo de fondo, estado
-  PluginEditor.*         Interfaz
-Resources/fonts/         Tipografias de los temas (con sus licencias)
-Resources/images/        Logos de los temas
-tools/hum2midi.cpp       Conversor audio -> MIDI por terminal
-tests/                   Tests y banco de pruebas
-packaging/               Instalador, desinstalador y LEEME del zip
-.github/workflows/       build.yml (cada push) y release.yml (cada tag v*)
+Source/dsp/        Deteccion (YIN, pYIN), segmentacion, tonalidad/escalas/grid, edicion
+Source/midi/       Exportacion .mid
+Source/ui/         Piano roll editable, LookAndFeel, temas
+Source/Plugin*     Procesador (grabacion, analisis en segundo plano, estado) e interfaz
+tools/hum2midi.cpp Conversor por terminal
+tests/             Tests y banco de pruebas
+packaging/         Instaladores, LEEME y notas de version
+Resources/         Tipografias (con sus licencias) y logos
 ```
 
-### Licencias
+### Licencia
 
-- **JUCE 8**: gratis para uso personal y productos bajo cierto umbral de ingresos
-  (plan Starter), o bajo AGPLv3. Antes de vender el plugin revisa
-  https://juce.com/get-juce/.
-- **Tipografías**: SIL Open Font License 1.1 (Anton, Space Mono, Sedgwick Ave
-  Display, Bungee, Inter, Pixelify Sans, Press Start 2P, Caveat, Archivo, Big
-  Shoulders Display) y Apache License 2.0 (Special Elite, Permanent Marker). Las
-  variables se instanciaron al peso que usa 4EVERTOOLS y se recortaron a
-  caracteres latinos; Press Start 2P va sin modificar por su *Reserved Font Name*.
-  Licencias en `Resources/fonts/`.
+4EVERHUM es software libre bajo la **GNU AGPL v3 o posterior** ([LICENSE](LICENSE)).
+Usa JUCE 8 bajo AGPLv3 y tipografías bajo OFL 1.1 / Apache 2.0: detalle en
+[TERCEROS.md](TERCEROS.md). El nombre y los logos de 4EVER son del colectivo y no
+forman parte de la licencia.
 
-### Ideas a futuro
+---
 
-- Modelo neuronal (Basic Pitch / CREPE) como tercer motor de detección.
-- Versión para macOS (AU/VST3).
-- Salida MIDI en vivo mientras tarareas.
+**English:** 4EVERHUM is a free, open-source (AGPLv3) VST3/AU plugin and
+standalone app: hum a melody, it detects the notes, key (with Camelot code), snaps
+them to a scale and the grid, and you drag the MIDI clip into any DAW's piano
+roll. Downloads for [Windows](https://github.com/sosa13m/4everhum/releases/latest/download/4EVERHUM-windows.zip)
+and [macOS](https://github.com/sosa13m/4everhum/releases/latest/download/4EVERHUM-macos.zip)
+(universal). The interface is in Spanish.

@@ -37,3 +37,6 @@ TERMINAL
 
 DESINSTALAR
   Doble clic en desinstalar.bat (queda en %LOCALAPPDATA%\4EVERHUM). Tus .mid y .wav no se borran.
+
+Codigo, ayuda y reporte de errores: https://github.com/sosa13m/4everhum
+Software libre bajo AGPLv3, sin garantia (ver LICENSE y TERCEROS.md).

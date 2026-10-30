@@ -1,3 +1,8 @@
+// 4EVERHUM - tararea -> MIDI
+// Copyright (C) 2026 sosa13m / colectivo 4EVER
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Este programa es software libre: ver el archivo LICENSE.
+
 // Test del DSP con una "voz" sintetica: armonicos, vibrato, ruido, silencios
 // entre notas y un portamento (deslizamiento) entre dos notas ligadas.
 //

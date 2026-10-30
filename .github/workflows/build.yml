@@ -1,9 +1,17 @@
 name: build
 
+# Cada push a main compila Windows y Mac, corre los tests y valida el plugin.
+# Un tag de version (git tag v1.1.0 && git push origin v1.1.0) ademas publica
+# una Release con 4EVERHUM-windows.zip y 4EVERHUM-macos.zip.
 on:
   push:
+    branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   windows:
@@ -21,16 +29,114 @@ jobs:
         run: cmake -B build -A x64
 
       - name: Compilar
-        run: cmake --build build --config Release --target FourEverHum_VST3 FourEverHum_Standalone hum2midi dsp_tests music_tests edit_tests bench_pitch midi_export_test
+        run: cmake --build build --config Release --parallel --target FourEverHum_VST3 FourEverHum_Standalone hum2midi dsp_tests music_tests edit_tests bench_pitch midi_export_test
 
       - name: Tests
         run: ctest --test-dir build -C Release --output-on-failure
 
-      - name: Subir VST3
-        uses: actions/upload-artifact@v4
+      - name: Validar el plugin (pluginval)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval
+          & .\pluginval\pluginval.exe --strictness-level 5 --skip-gui-tests --validate-in-process --validate build\FourEverHum_artefacts\Release\VST3\4EVERHUM.vst3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Armar el paquete
+        shell: pwsh
+        run: |
+          $d = "dist/4EVERHUM"
+          New-Item -ItemType Directory -Force "$d/VST3", "$d/LICENCIAS" | Out-Null
+          Copy-Item -Recurse build/FourEverHum_artefacts/Release/VST3/4EVERHUM.vst3 "$d/VST3/"
+          Copy-Item build/FourEverHum_artefacts/Release/Standalone/4EVERHUM.exe "$d/"
+          Copy-Item build/hum2midi_artefacts/Release/hum2midi.exe "$d/"
+          Copy-Item packaging/instalar.ps1, packaging/instalar.bat, packaging/desinstalar.ps1, packaging/desinstalar.bat, packaging/LEEME.txt "$d/"
+          Copy-Item LICENSE, TERCEROS.md, CHANGELOG.md "$d/"
+          Copy-Item Resources/fonts/*.txt "$d/LICENCIAS/"
+          Compress-Archive -Path $d -DestinationPath dist/4EVERHUM-windows.zip
+          Get-ChildItem -Recurse $d | Select-Object FullName, Length
+
+      - uses: actions/upload-artifact@v4
         with:
           name: 4EVERHUM-windows
-          path: |
-            build/FourEverHum_artefacts/Release/VST3/
-            build/FourEverHum_artefacts/Release/Standalone/
-            build/hum2midi_artefacts/Release/hum2midi.exe
+          path: dist/4EVERHUM-windows.zip
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: juce-8.0.15-${{ runner.os }}
+
+      - name: "Configurar (universal: Apple Silicon + Intel)"
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
+
+      - name: Compilar
+        run: cmake --build build --parallel --target FourEverHum_VST3 FourEverHum_AU FourEverHum_Standalone hum2midi dsp_tests music_tests edit_tests bench_pitch midi_export_test
+
+      - name: Tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Firmar (ad-hoc)
+        run: |
+          A=build/FourEverHum_artefacts/Release
+          for b in "$A/VST3/4EVERHUM.vst3" "$A/AU/4EVERHUM.component" "$A/Standalone/4EVERHUM.app" build/hum2midi_artefacts/Release/hum2midi; do
+            codesign --force --deep --sign - "$b"
+          done
+          lipo -info "$A/VST3/4EVERHUM.vst3/Contents/MacOS/4EVERHUM"
+
+      - name: Validar el plugin (pluginval y auval)
+        run: |
+          curl -sSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          unzip -q pluginval.zip
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --skip-gui-tests --validate-in-process --validate build/FourEverHum_artefacts/Release/VST3/4EVERHUM.vst3
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R build/FourEverHum_artefacts/Release/AU/4EVERHUM.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          auval -v aufx Fhum Fevr
+
+      - name: Armar el paquete
+        run: |
+          A=build/FourEverHum_artefacts/Release
+          d=dist/4EVERHUM
+          mkdir -p "$d/LICENCIAS"
+          cp -R "$A/VST3/4EVERHUM.vst3" "$A/AU/4EVERHUM.component" "$A/Standalone/4EVERHUM.app" "$d/"
+          cp build/hum2midi_artefacts/Release/hum2midi "$d/"
+          cp packaging/mac/instalar.command packaging/mac/desinstalar.command packaging/mac/LEEME-mac.txt "$d/"
+          chmod +x "$d/instalar.command" "$d/desinstalar.command" "$d/hum2midi"
+          cp LICENSE TERCEROS.md CHANGELOG.md "$d/"
+          cp Resources/fonts/*.txt "$d/LICENCIAS/"
+          ditto -c -k --keepParent "$d" dist/4EVERHUM-macos.zip
+          ls -la "$d"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 4EVERHUM-macos
+          path: dist/4EVERHUM-macos.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [ windows, macos ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Notas de la version
+        run: python3 packaging/release_notes.py "${GITHUB_REF_NAME}" > notas.md && cat notas.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: 4EVERHUM ${{ github.ref_name }}
+          body_path: notas.md
+          files: |
+            dist/4EVERHUM-windows.zip
+            dist/4EVERHUM-macos.zip

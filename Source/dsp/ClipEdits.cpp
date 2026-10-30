@@ -1,3 +1,8 @@
+// 4EVERHUM - tararea -> MIDI
+// Copyright (C) 2026 sosa13m / colectivo 4EVER
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Este programa es software libre: ver el archivo LICENSE.
+
 #include "dsp/ClipEdits.h"
 
 #include <algorithm>
@@ -38,7 +43,12 @@ int insertNote (std::vector<ClipNote>& notes, const ClipNote& note)
 {
     const auto it = std::upper_bound (notes.begin(), notes.end(), note,
                                       [] (const ClipNote& a, const ClipNote& b) { return a.startBeat < b.startBeat; });
-    return (int) std::distance (notes.begin(), notes.insert (it, note));
+    // El indice se calcula ANTES de insertar: insert() puede reubicar el vector e
+    // invalidar cualquier iterador tomado antes (y el orden de evaluacion de los
+    // argumentos de una funcion no esta definido en C++).
+    const auto index = std::distance (notes.begin(), it);
+    notes.insert (it, note);
+    return (int) index;
 }
 
 int noteAt (const std::vector<ClipNote>& notes, double beat, int midi)

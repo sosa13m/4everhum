@@ -1,3 +1,8 @@
+// 4EVERHUM - tararea -> MIDI
+// Copyright (C) 2026 sosa13m / colectivo 4EVER
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Este programa es software libre: ver el archivo LICENSE.
+
 // Prueba de punta a punta: voz sintetica -> notas -> .mid en disco -> se relee
 // el archivo y se verifica que las notas caen donde deben a 140 BPM.
 

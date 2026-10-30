@@ -87,3 +87,11 @@ el motor con datos reales.
 - [ ] En una terminal nueva, `hum2midi --ayuda` funciona
 - [ ] Reinstalar encima (con FL cerrado) reemplaza la versión anterior
 - [ ] `desinstalar.bat` quita el plugin, la app, el acceso directo y la entrada del PATH
+
+## 10. Versión pública (1.1.0)
+
+- [ ] Los links "Descargar para Windows / Mac" del README bajan el zip de la última versión
+- [ ] Al pie de la ventana del plugin aparece la versión y el link al repo, y el link abre GitHub
+- [ ] Mac: `bash instalar.command` instala el VST3, el AU y la app
+- [ ] Mac: FL Studio y Logic encuentran el plugin; el permiso de micrófono aparece la primera vez
+- [ ] Mac: agregar notas con doble clic marca la nota nueva (el error arreglado en 1.1.0)

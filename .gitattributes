@@ -1,4 +1,6 @@
-# Los .bat necesitan finales de linea de Windows.
+# Los .bat necesitan finales de linea de Windows; los scripts de Mac, de Unix.
 *.bat text eol=crlf
+*.command text eol=lf
+*.sh text eol=lf
 *.ttf binary
 *.png binary

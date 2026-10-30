@@ -1,3 +1,8 @@
+// 4EVERHUM - tararea -> MIDI
+// Copyright (C) 2026 sosa13m / colectivo 4EVER
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Este programa es software libre: ver el archivo LICENSE.
+
 // Banco de pruebas YIN vs pYIN con voces sinteticas dificiles y altura real conocida.
 //   bench_pitch            -> imprime la tabla de comparacion
 // Tambien sirve de test: falla si pYIN no mejora a YIN en los casos dificiles.

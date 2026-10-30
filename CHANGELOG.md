@@ -1,5 +1,20 @@
 # Cambios
 
+## 1.1.0
+
+Primera versión pública para descargar.
+
+- **Versión para Mac**: VST3, AU y app sin DAW, para Apple Silicon e Intel
+  (macOS 10.15 o más nuevo), con instalador `instalar.command`.
+- **Links de descarga fijos**: `releases/latest` siempre apunta a la última versión.
+- **Software libre**: el código queda bajo la licencia AGPLv3. Cada descarga
+  incluye la licencia y los avisos de terceros (JUCE y tipografías).
+- En el plugin, al pie de la ventana: versión, licencia y link al repositorio.
+- Arreglado: en Mac (compilador Clang), agregar una nota con doble clic podía
+  marcar una nota equivocada o cerrar el plugin.
+- GitHub valida cada versión con pluginval (Windows y Mac) y auval (AU) antes de
+  publicarla.
+
 ## 1.0.0
 
 Primera versión completa de **4EVERHUM**: tarareas, el plugin detecta la melodía
